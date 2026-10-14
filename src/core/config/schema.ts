@@ -32,6 +32,10 @@ export const configSchema: z.ZodType<Config> = z
       .optional()
       .describe("When a provider isn't authenticated. Default: prompt"),
     noTerminal: z.enum(["fail", "skip"]).optional().describe("What `prompt` becomes without a terminal. Default: fail"),
+    animation: z
+      .enum(["after-login", "always", "never"])
+      .optional()
+      .describe("Open-sesame animation when everything is ready. Default: after-login"),
     onlineCheck: z
       .union([z.string().regex(/^[^:\s]+:\d+$/, 'must be "host:port"'), z.literal(false)])
       .optional()

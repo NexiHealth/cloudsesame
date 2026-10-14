@@ -3,7 +3,10 @@
 Open sesame for your clouds: checks that you're online and logged in to gcloud, aws and az before dev or infra work, and helps you log in when you're not.
 
 ```sh
-bunx cloudsesame check
+bunx cloudsesame          # check and offer to log in (auth)
+bunx cloudsesame predev   # connectivity + auth, for "predev" scripts
+bunx cloudsesame check    # report only, never prompts
+bunx cloudsesame init     # generate sesame.config.ts
 ```
 
 See [the docs](https://nexihealth.github.io/cloudsesame/) for all install options (Homebrew, winget, Scoop, Chocolatey, binaries).
@@ -13,6 +16,7 @@ See [the docs](https://nexihealth.github.io/cloudsesame/) for all install option
 ```sh
 bun install
 bun run dev -- check        # run from source
+bun run preview:vault       # play the open-sesame animation
 bun test
 bun run typecheck
 bun run build               # npm bundle, config schema and types -> dist/

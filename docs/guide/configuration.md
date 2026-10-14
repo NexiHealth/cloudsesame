@@ -4,7 +4,7 @@ cloudsesame looks for the nearest config file from the current directory up to t
 
 `sesame.config.ts` · `sesame.config.mts` · `sesame.config.js` · `sesame.config.mjs` · `sesame.config.json`
 
-Use `--config <file>` to point at one explicitly.
+Use `--config <file>` to point at one explicitly, or `cloudsesame init` to generate one.
 
 ## TypeScript
 
@@ -41,8 +41,9 @@ The `import type` is erased at runtime, so cloudsesame doesn't need to be instal
 | `groups` | | Named sets of providers: `{ "infra": ["gcloud", "aws"] }` → `cloudsesame check infra` |
 | `onlineCheck` | `"www.gstatic.com:443"` | `host:port` probed to detect connectivity, or `false` |
 | `timeout` | `20000` | Timeout per check, in ms |
-| `offline` | `"prompt"` | `prompt` \| `continue` \| `fail` |
-| `unauthenticated` | `"prompt"` | `prompt` \| `login` \| `skip` \| `fail` |
+| `offline` | `"prompt"` | `predev` when offline: `prompt` \| `continue` \| `fail` (`auth` always fails offline) |
+| `unauthenticated` | `"prompt"` | When a provider isn't ready: `prompt` (log in / skip / stop) \| `login` \| `skip` \| `fail` |
 | `noTerminal` | `"fail"` | What `prompt` becomes without a terminal: `fail` \| `skip` |
+| `animation` | `"after-login"` | Open-sesame animation when everything is ready: `after-login` \| `always` \| `never`. Never plays without a terminal, in CI, or with `NO_COLOR` |
 
 With no providers configured, every provider whose CLI is installed is checked with default settings.

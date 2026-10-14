@@ -1,6 +1,6 @@
 import { Box, Text } from "ink";
-import type { State, Status } from "../core/providers/types";
-import { formatCommand, symbols } from "./format";
+import type { State, Status } from "../../core/providers/types";
+import { formatCommand, symbols } from "../format";
 
 const colors: Record<State, string> = { ok: "green", unauthenticated: "red", mismatch: "yellow", missing: "red", error: "red" };
 

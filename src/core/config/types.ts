@@ -2,6 +2,10 @@
 // so this file must stay types-only. Validation lives in ./schema.ts.
 
 export type ProviderId = "gcloud" | "aws" | "az";
+export type OfflinePolicy = "prompt" | "continue" | "fail";
+export type UnauthenticatedPolicy = "prompt" | "login" | "skip" | "fail";
+export type NoTerminalPolicy = "fail" | "skip";
+export type AnimationPolicy = "after-login" | "always" | "never";
 
 export interface GcloudTarget {
   /**
@@ -35,22 +39,27 @@ export interface AzTarget {
 export interface Config {
   $schema?: string;
   /**
-   * When offline:
+   * When offline (`predev`; `auth` always fails offline):
    * `prompt` asks whether to continue, `continue` warns and continues, `fail` exits.
    * @default "prompt"
    */
-  offline?: "prompt" | "continue" | "fail";
+  offline?: OfflinePolicy;
   /**
    * When a provider isn't authenticated:
    * `prompt` asks (log in / skip / stop), `login` logs in right away, `skip` warns and continues, `fail` exits.
    * @default "prompt"
    */
-  unauthenticated?: "prompt" | "login" | "skip" | "fail";
+  unauthenticated?: UnauthenticatedPolicy;
   /**
    * What a `prompt` becomes when there's no terminal (CI, agents, pipes).
    * @default "fail"
    */
-  noTerminal?: "fail" | "skip";
+  noTerminal?: NoTerminalPolicy;
+  /**
+   * The open-sesame animation when everything is ready (interactive terminals only).
+   * @default "after-login"
+   */
+  animation?: AnimationPolicy;
   /**
    * `host:port` probed (TCP) to detect connectivity, or `false` to disable the check.
    * @default "www.gstatic.com:443"

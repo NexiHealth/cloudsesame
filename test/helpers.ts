@@ -15,3 +15,52 @@ export function fakeExec(responses: Record<string, Partial<ExecResult>>) {
 }
 
 export const ctx = (exec: Exec) => ({ exec, timeout: 1000 });
+
+import type { Deps } from "../src/core/deps";
+import type { Choice, FlowEvent, Ui } from "../src/core/flow/types";
+
+export const installed =
+  (...clis: string[]) =>
+  (cmd: string) =>
+    clis.includes(cmd) ? `/bin/${cmd}` : undefined;
+
+export function deps(overrides: Partial<Deps> & { online?: boolean } = {}): Deps {
+  return {
+    exec: fakeExec({}).exec,
+    which: installed("gcloud", "aws", "az"),
+    isOnline: async () => overrides.online ?? true,
+    ...overrides,
+  };
+}
+
+/** Ui that answers prompts from a script and records everything. */
+export class ScriptedUi implements Ui {
+  events: FlowEvent[] = [];
+  prompts: Array<{ message: string; choices: string[] }> = [];
+  handOffs: string[][] = [];
+
+  constructor(
+    private answers: string[] = [],
+    private onHandOff: (command: string[]) => number | Promise<number> = () => 0,
+  ) {}
+
+  emit(event: FlowEvent) {
+    this.events.push(event);
+  }
+
+  async choose<T extends string>(message: string, choices: Choice<T>[]): Promise<T> {
+    this.prompts.push({ message, choices: choices.map((c) => c.value) });
+    const answer = this.answers.shift();
+    if (!answer) throw new Error(`unexpected prompt: ${message}`);
+    return answer as T;
+  }
+
+  async handOff(command: string[]) {
+    this.handOffs.push(command);
+    return this.onHandOff(command);
+  }
+
+  of<T extends FlowEvent["type"]>(type: T) {
+    return this.events.filter((e): e is Extract<FlowEvent, { type: T }> => e.type === type);
+  }
+}

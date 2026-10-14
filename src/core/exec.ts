@@ -45,3 +45,18 @@ export function which(cmd: string): string | undefined {
   }
   return undefined;
 }
+
+/** Run a command attached to the terminal (logins open browsers, prompt, etc.). Resolves with its exit code. */
+export function execInteractive([cmd, ...args]: string[]): Promise<number> {
+  // Ctrl-C should stop the child, not us: we decide what happens next.
+  const ignore = () => {};
+  process.on("SIGINT", ignore);
+  return new Promise<number>((resolve) => {
+    const child = spawn(cmd!, args.map(quote), { stdio: "inherit", shell: isWindows });
+    child.on("error", () => resolve(127));
+    child.on("close", (code) => resolve(code ?? 1));
+  }).finally(() => process.off("SIGINT", ignore));
+}
+
+/** Display form of a command, quoting arguments that need it. */
+export const formatCommand = (cmd: string[]) => cmd.map((a) => (/[\s"']/.test(a) ? JSON.stringify(a) : a)).join(" ");

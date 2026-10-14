@@ -4,21 +4,24 @@ Bun + TypeScript CLI that checks connectivity and gcloud/aws/az logins before de
 
 ## Structure
 
-- `src/cli.ts`: entry point (shebang, calls `run`)
-- `src/run.ts`: arg parsing, help, dispatch to plain or Ink, error -> exit code mapping
-- `src/command.ts`: `Command` interface (`plain` + `ink`), `Context`, `Flags`
-- `src/core/`: UI-free logic. `config/` (types = public API, zod schema, loader), `providers/` (gcloud, aws, az), `check.ts` (target resolution + orchestration), `exec.ts`, `online.ts`, `exit.ts`
-- `src/commands/<name>/index.ts`: command definition + plain output; register in `src/commands/index.ts`
-- `src/commands/<name>/ink.tsx`: Ink UI for the command (lazy-loaded)
-- `src/ui/`: shared UI. `print.ts` (one-shot Ink output), `mode.ts` (plain detection), Ink components, `format.ts` (shared by plain and Ink)
+- `src/cli.ts`: entry point
+- `src/run.ts`: flag parsing, help, command dispatch (default `auth`; `cloudsesame aws` = `auth aws`), error -> exit code
+- `src/command.ts`: `Command` (`plain` + `ink`), `Context`, `Flags`
+- `src/commands/`: `index.ts` (registry), `flow.ts` (check/auth/predev factory), `init.ts`
+- `src/core/`: UI-free logic, never imports `src/ui`
+  - `config/`: `types.ts` (public API), `schema.ts` (zod), `load.ts` (find up to git root, TS/JSON)
+  - `providers/`: gcloud, aws, az. Each returns `Status[]` with a `fix` command; never prompts or logs in
+  - `flow/`: the engine. `run.ts` (online -> checks -> resolve each target), `policy.ts` (flags > config > defaults), `types.ts` (`Ui`, `FlowEvent`, `FlowResult`)
+  - `targets.ts`, `check.ts`, `deps.ts` (injectable exec/which/isOnline), `exec.ts`, `online.ts`, `init.ts`, `exit.ts`
+- `src/ui/`: front ends implementing `Ui`
+  - `plain.ts`: line output + readline prompts
+  - `ink/`: lazy-loaded Ink UI. `flow.tsx` (engine <-> React bridge), `flow-app.tsx`, `store.ts` (event reducer), `select.tsx`, `vault.tsx`
+  - `vault/scene.ts`: the animation as a pure function (time, size) -> ANSI lines
 - `src/shims/`: build-time stubs (aliased in `tsconfig.json` `paths`)
-- `test/`: `bun test`. `helpers.ts` has `fakeExec` for provider tests
-- `scripts/build.ts`: npm build (bundle + `dist/schema.json` + `dist/index.d.ts`)
-- `scripts/build-binaries.ts`: local cross-compile to `bin/`
-- `docs/`: VitePress site (deployed to GitHub Pages)
-- `.goreleaser.yaml`: binaries, GitHub Release, Homebrew, Scoop, winget
-- `packaging/chocolatey/`: Chocolatey package template
-- `.github/workflows/`: `ci.yml`, `release.yml`, `docs.yml`
+- `test/`: `bun test`. `helpers.ts`: `fakeExec`, `deps()`, `ScriptedUi`
+- `scripts/`: `build.ts` (npm: bundle + `dist/schema.json` + `dist/index.d.ts`), `build-binaries.ts`, `preview-vault.tsx`
+- `docs/`: VitePress site (GitHub Pages)
+- `.goreleaser.yaml`, `packaging/chocolatey/`, `.github/workflows/`: distribution and CI
 
 ## Commands
 
@@ -28,24 +31,25 @@ bun test
 bun run typecheck
 bun run build           # npm bundle, schema, types -> dist/
 bun run build:bin       # binaries -> bin/
+bun run preview:vault   # play the animation
 bun run docs:dev
 ```
 
 ## Rules
 
-- The npm bundle targets Node (`--target node`), so don't use Bun-only APIs in `src/`.
+- `src/core` has no UI and no direct side effects: shell out and probe the network through `Deps`.
+- New provider: implement `Provider` in `src/core/providers/`, add it to `providers/index.ts`, `providerIds` in `schema.ts`, the target type in `types.ts`, and docs.
+- New flow behavior goes in `src/core/flow/run.ts` and is exposed to UIs as `FlowEvent`s; both UIs must handle every event.
+- Every command implements `plain` and `ink`. Plain mode = `--plain`, `CLOUDSESAME_PLAIN=1`, or Node < 22.
+- Only `src/ui/ink/` (and `scripts/`) may import `ink`/`react`; load them via `await import(...)`. A static import breaks Node 18 (the bundle is code-split; Ink is its own chunk).
+- The npm bundle targets Node (`--target node`), so don't use Bun-only APIs in `src/`. Node >= 18 supported; Ink only on >= 22.
+- `src/core/config/types.ts` is the public API (shipped as `dist/index.d.ts`): types only, JSDoc on every field. `schema.ts` is typed against it.
 - Get the version from `VERSION` in `src/run.ts`, not `package.json` (release binaries inject it via `--define`).
-- Every command implements both `plain` and `ink`. Plain mode = `--plain`, `CLOUDSESAME_PLAIN=1`, or Node < 22.
-- Only `ink.tsx` files (and `src/ui/print.ts`) may import `ink`/`react`; load them via `await import("./ink")`. A static import breaks Node 18 (bundle is code-split; ink is its own chunk).
-- Ink output: static -> `print(<Comp />)`; interactive -> `render(<App />)` + `await waitUntilExit()`.
 - All deps are bundled into `dist/` and the binaries, so add them as `devDependencies`. Keep them few.
-- Node >= 18 supported; Ink only on >= 22.
-- `src/core/config/types.ts` is the public API (shipped as `dist/index.d.ts`): types only, JSDoc on every field. Keep `schema.ts` in sync (it's typed against it).
-- Providers never prompt or log in themselves: they return `Status[]` with a `fix` command. Shell out via the injected `exec`, never directly.
-- Exit codes live in `src/core/exit.ts`; document changes in `docs/guide/commands.md`.
 - Don't remove the `react-devtools-core` alias in `tsconfig.json`; builds fail without it.
-- Update `docs/guide/` when commands change.
-- Test plain output via `run([... , "--plain"])`, Ink components with `ink-testing-library`.
+- Exit codes live in `src/core/exit.ts`; keep `--help` and `docs/guide/commands.md` in sync.
+- Tests: engine via `runFlow` + `ScriptedUi` + `fakeExec`; providers via `fakeExec`; Ink components via `ink-testing-library`; e2e via `run([...])` with fake CLIs on PATH.
+- Update `docs/guide/` when commands, flags or config change.
 
 ## Releases
 

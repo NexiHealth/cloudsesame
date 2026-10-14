@@ -31,7 +31,8 @@
     "prepublishOnly": "bun run build",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:preview": "vitepress preview docs",
+    "preview:vault": "bun run scripts/preview-vault.tsx"
   },
   "devDependencies": {
     "@types/bun": "^1.4.3",

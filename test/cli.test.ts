@@ -22,13 +22,16 @@ describe("cli", () => {
     expect(await capture(["--version"])).toMatchObject({ code: 0, out: pkg.version });
   });
 
-  test("no args prints help", async () => {
-    expect((await capture([])).out).toContain("Usage:");
+  test("--help", async () => {
+    expect((await capture(["--help"])).out).toContain("Usage:");
   });
 
-  test("unknown command and flag exit 2", async () => {
-    expect((await capture(["nope"])).code).toBe(2);
+  test("bad flags and unknown names exit 2", async () => {
     expect((await capture(["check", "--nope"])).code).toBe(2);
+    expect((await capture(["--offline", "maybe"])).err).toContain("--offline must be one of");
+    const unknown = await capture(["nope", "--plain"]);
+    expect(unknown.code).toBe(2);
+    expect(unknown.err).toContain("Commands: auth, predev, check, init");
   });
 });
 
@@ -59,6 +62,27 @@ describe.skipIf(process.platform === "win32")("check e2e", () => {
     const { code, out } = await capture(["check", "--plain"], dir);
     expect(code).toBe(4);
     expect(out).toBe("✖ gcloud adc  adc expired\n  → gcloud auth application-default login");
+  });
+
+  test("auth without a terminal fails with the fix and a --skip hint", async () => {
+    gcloud(1);
+    const { code, err } = await capture(["auth", "--plain"], dir);
+    expect(code).toBe(4);
+    expect(err).toBe(
+      "✖ Not ready: gcloud\n  No terminal to prompt in. Run `gcloud auth application-default login`, or rerun with --skip to continue without it.",
+    );
+  });
+
+  test("default command is auth; --skip continues", async () => {
+    gcloud(1);
+    const { code, out } = await capture(["gcloud", "--skip", "--plain"], dir);
+    expect(code).toBe(0);
+    expect(out).toContain("- skipped gcloud");
+  });
+
+  test("predev --strict --skip fails", async () => {
+    gcloud(1);
+    expect((await capture(["predev", "--skip", "--strict", "--plain"], dir)).code).toBe(4);
   });
 
   test("json", async () => {
