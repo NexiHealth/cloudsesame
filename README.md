@@ -9,6 +9,8 @@ bunx cloudsesame check    # report only, never prompts
 bunx cloudsesame init     # generate sesame.config.ts
 ```
 
+Agents: see [`skills/cloudsesame/SKILL.md`](skills/cloudsesame/SKILL.md).
+
 See [the docs](https://nexihealth.github.io/cloudsesame/) for all install options (Homebrew, winget, Scoop, Chocolatey, binaries).
 
 ## Development

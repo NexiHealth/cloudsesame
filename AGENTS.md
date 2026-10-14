@@ -21,6 +21,7 @@ Bun + TypeScript CLI that checks connectivity and gcloud/aws/az logins before de
 - `test/`: `bun test`. `helpers.ts`: `fakeExec`, `deps()`, `ScriptedUi`
 - `scripts/`: `build.ts` (npm: bundle + `dist/schema.json` + `dist/index.d.ts`), `build-binaries.ts`, `preview-vault.tsx`
 - `docs/`: VitePress site (GitHub Pages)
+- `skills/cloudsesame/SKILL.md`: Agent Skill for projects that use cloudsesame (shipped in the npm package)
 - `.goreleaser.yaml`, `packaging/chocolatey/`, `.github/workflows/`: distribution and CI
 
 ## Commands
@@ -49,7 +50,7 @@ bun run docs:dev
 - Don't remove the `react-devtools-core` alias in `tsconfig.json`; builds fail without it.
 - Exit codes live in `src/core/exit.ts`; keep `--help` and `docs/guide/commands.md` in sync.
 - Tests: engine via `runFlow` + `ScriptedUi` + `fakeExec`; providers via `fakeExec`; Ink components via `ink-testing-library`; e2e via `run([...])` with fake CLIs on PATH.
-- Update `docs/guide/` when commands, flags or config change.
+- Update `docs/guide/` and `skills/cloudsesame/SKILL.md` when commands, flags, config or exit codes change.
 
 ## Releases
 

@@ -17,6 +17,7 @@ export default defineConfig({
           { text: "Installation", link: "/guide/installation" },
           { text: "Configuration", link: "/guide/configuration" },
           { text: "Commands", link: "/guide/commands" },
+          { text: "AI agents", link: "/guide/agents" },
         ],
       },
     ],
