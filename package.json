@@ -14,16 +14,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OWNER/cloudsesame.git"
+    "url": "git+https://github.com/NexiHealth/cloudsesame.git"
   },
-  "homepage": "https://github.com/OWNER/cloudsesame#readme",
-  "bugs": "https://github.com/OWNER/cloudsesame/issues",
+  "homepage": "https://github.com/NexiHealth/cloudsesame#readme",
+  "bugs": "https://github.com/NexiHealth/cloudsesame/issues",
   "keywords": [
     "cli"
   ],
   "scripts": {
     "dev": "bun run src/cli.ts",
-    "build": "bun build src/cli.ts --target node --minify --outfile dist/cli.js",
+    "build": "bun run scripts/build.ts",
     "build:bin": "bun run scripts/build-binaries.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
@@ -35,8 +35,22 @@
   },
   "devDependencies": {
     "@types/bun": "^1.4.3",
+    "@types/react": "^19.3.0",
+    "ink": "^8.0.0",
+    "ink-testing-library": "^4.0.0",
+    "react": "^19.3.0",
     "typescript": "^7.0.2",
-    "vitepress": "^1.6.4"
+    "vitepress": "^1.6.4",
+    "zod": "^4.6.7"
   },
-  "license": "MIT"
+  "license": "Apache-2.0",
+  "author": "Pol Vallverdu (https://polv.dev)",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts"
+    },
+    "./schema.json": "./dist/schema.json",
+    "./package.json": "./package.json"
+  }
 }

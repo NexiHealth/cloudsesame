@@ -10,6 +10,10 @@
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "react-devtools-core": ["./src/shims/react-devtools-core.ts"]
+    },
     "skipLibCheck": true,
     "noEmit": true
   },

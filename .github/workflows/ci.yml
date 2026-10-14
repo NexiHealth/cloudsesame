@@ -14,11 +14,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
       - run: bun test
       - run: bun run build
       - run: node dist/cli.js --version
+      # Runners may or may not be logged in to the clouds: 0 (ok) and 4 (unauthenticated) are both fine.
+      - run: node dist/cli.js check --json || [ $? -eq 4 ]
+        shell: bash
+      - run: node dist/cli.js check --plain || [ $? -eq 4 ]
+        shell: bash
+
+  # Old Node: Ink can't load, so commands must fall back to plain output.
+  node-compat:
+    strategy:
+      matrix:
+        node: [18, 20]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: node dist/cli.js check || [ $? -eq 4 ]
 
   docs:
     runs-on: ubuntu-latest

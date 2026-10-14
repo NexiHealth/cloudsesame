@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: cloudsesame
-  tagline: cloudsesame CLI
+  tagline: Open sesame for your clouds. Check and log in to gcloud, aws and az before you work.
   actions:
     - theme: brand
       text: Get started

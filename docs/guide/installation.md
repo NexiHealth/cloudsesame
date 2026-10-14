@@ -11,19 +11,19 @@ npm install -g cloudsesame
 ## Homebrew (macOS, Linux)
 
 ```sh
-brew install OWNER/tap/cloudsesame
+brew install NexiHealth/tap/cloudsesame
 ```
 
 ## winget (Windows)
 
 ```sh
-winget install OWNER.cloudsesame
+winget install NexiHealth.cloudsesame
 ```
 
 ## Scoop (Windows)
 
 ```sh
-scoop bucket add OWNER https://github.com/OWNER/scoop-bucket
+scoop bucket add NexiHealth https://github.com/NexiHealth/scoop-bucket
 scoop install cloudsesame
 ```
 
@@ -35,4 +35,4 @@ choco install cloudsesame
 
 ## Standalone binary
 
-Download the archive for your platform from the [latest release](https://github.com/OWNER/cloudsesame/releases/latest), extract it and put `cloudsesame` on your `PATH`.
+Download the archive for your platform from the [latest release](https://github.com/NexiHealth/cloudsesame/releases/latest), extract it and put `cloudsesame` on your `PATH`.

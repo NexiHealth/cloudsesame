@@ -55,18 +55,18 @@ changelog:
 
 release:
   github:
-    owner: OWNER
+    owner: NexiHealth
     name: cloudsesame
 
-# brew install OWNER/tap/cloudsesame
+# brew install NexiHealth/tap/cloudsesame
 homebrew_casks:
   - name: cloudsesame
     binaries: [cloudsesame]
-    homepage: https://github.com/OWNER/cloudsesame
+    homepage: https://github.com/NexiHealth/cloudsesame
     description: cloudsesame CLI
-    license: MIT # TODO: confirm license
+    license: Apache-2.0
     repository:
-      owner: OWNER
+      owner: NexiHealth
       name: homebrew-tap
       token: "{{ .Env.PACKAGES_GITHUB_TOKEN }}"
     # Binaries aren't notarized yet, so strip quarantine to avoid the "damaged app" dialog.
@@ -78,31 +78,32 @@ homebrew_casks:
             system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/cloudsesame"]
           end
 
-# scoop bucket add OWNER https://github.com/OWNER/scoop-bucket && scoop install cloudsesame
+# scoop bucket add NexiHealth https://github.com/NexiHealth/scoop-bucket && scoop install cloudsesame
 scoops:
   - name: cloudsesame
     directory: bucket
-    homepage: https://github.com/OWNER/cloudsesame
+    homepage: https://github.com/NexiHealth/cloudsesame
     description: cloudsesame CLI
-    license: MIT # TODO: confirm license
+    license: Apache-2.0
     repository:
-      owner: OWNER
+      owner: NexiHealth
       name: scoop-bucket
       token: "{{ .Env.PACKAGES_GITHUB_TOKEN }}"
 
-# winget install OWNER.cloudsesame
-# Pushes manifests to a fork (OWNER/winget-pkgs) and opens a PR to microsoft/winget-pkgs.
+# winget install NexiHealth.cloudsesame
+# Pushes manifests to a fork (NexiHealth/winget-pkgs) and opens a PR to microsoft/winget-pkgs.
 # The very first submission is reviewed manually by the winget team.
 winget:
   - name: cloudsesame
-    publisher: OWNER
-    package_identifier: OWNER.cloudsesame
+    publisher: NexiHealth
+    author: Pol Vallverdu
+    package_identifier: NexiHealth.cloudsesame
     short_description: cloudsesame CLI
-    homepage: https://github.com/OWNER/cloudsesame
-    license: MIT # TODO: confirm license
+    homepage: https://github.com/NexiHealth/cloudsesame
+    license: Apache-2.0
     skip_upload: '{{ if index .Env "WINGET_ENABLED" }}false{{ else }}true{{ end }}' # set the WINGET_ENABLED repo variable once your winget-pkgs fork exists
     repository:
-      owner: OWNER
+      owner: NexiHealth
       name: winget-pkgs
       token: "{{ .Env.PACKAGES_GITHUB_TOKEN }}"
       branch: "cloudsesame-{{ .Version }}"

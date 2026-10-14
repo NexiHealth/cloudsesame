@@ -23,7 +23,7 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # PAT with write access to OWNER/homebrew-tap, OWNER/scoop-bucket and OWNER/winget-pkgs.
+          # PAT with write access to NexiHealth/homebrew-tap, NexiHealth/scoop-bucket and NexiHealth/winget-pkgs.
           PACKAGES_GITHUB_TOKEN: ${{ secrets.PACKAGES_GITHUB_TOKEN }}
           WINGET_ENABLED: ${{ vars.WINGET_ENABLED }}
 

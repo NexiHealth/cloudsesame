@@ -5,11 +5,11 @@
     <id>cloudsesame</id>
     <version>0.0.0</version>
     <title>cloudsesame</title>
-    <authors>OWNER</authors>
-    <owners>OWNER</owners>
-    <projectUrl>https://github.com/OWNER/cloudsesame</projectUrl>
-    <packageSourceUrl>https://github.com/OWNER/cloudsesame/tree/main/packaging/chocolatey</packageSourceUrl>
-    <licenseUrl>https://github.com/OWNER/cloudsesame/blob/main/LICENSE</licenseUrl>
+    <authors>Pol Vallverdu</authors>
+    <owners>NexiHealth</owners>
+    <projectUrl>https://github.com/NexiHealth/cloudsesame</projectUrl>
+    <packageSourceUrl>https://github.com/NexiHealth/cloudsesame/tree/main/packaging/chocolatey</packageSourceUrl>
+    <licenseUrl>https://github.com/NexiHealth/cloudsesame/blob/main/LICENSE</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <tags>cloudsesame cli</tags>
     <summary>cloudsesame CLI</summary>
