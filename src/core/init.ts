@@ -52,3 +52,13 @@ export function renderConfig({ config, otherAwsProfiles }: Detected, format: For
   const note = otherAwsProfiles.length > 0 ? `// Other AWS profiles: ${otherAwsProfiles.join(", ")} (add as aws: [{ profile: "..." }, ...])\n` : "";
   return `import type { Config } from "cloudsesame";\n\n${note}export default ${body} satisfies Config;\n`;
 }
+
+/** Where the Agent Skill lives (skills/cloudsesame/SKILL.md), in the format the `skills` CLI accepts. */
+export const SKILL_SOURCE = "NexiHealth/cloudsesame";
+
+/** `skills add` via bunx, or npx when Bun isn't installed. */
+export function skillInstallCommand(which: Deps["which"]): string[] | undefined {
+  if (which("bunx")) return ["bunx", "skills", "add", SKILL_SOURCE];
+  if (which("npx")) return ["npx", "-y", "skills", "add", SKILL_SOURCE];
+  return undefined;
+}

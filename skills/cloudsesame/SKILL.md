@@ -43,7 +43,7 @@ Never pass `-y`/`--yes` or `--unauthenticated login`: they start interactive log
    bunx cloudsesame init       # writes sesame.config.ts (--json for sesame.config.json)
    ```
 
-   `init` refuses to overwrite an existing config (`--force` to override).
+   `init` refuses to overwrite an existing config (`--force` to override). Without a terminal it skips the skill-install prompt and prints `bunx skills add NexiHealth/cloudsesame` instead; don't run that unless the user asks (this skill is already installed if you're reading it).
 
 2. Edit `sesame.config.ts` to match what the project actually uses. Only list providers the project needs:
 

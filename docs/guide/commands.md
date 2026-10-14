@@ -25,7 +25,7 @@ cloudsesame check --json
 
 ## `init`
 
-Writes `sesame.config.ts` (or `sesame.config.json` with `--json`) in the current directory, based on the installed CLIs and their current project/profile/subscription. `--force` overwrites an existing config.
+Writes `sesame.config.ts` (or `sesame.config.json` with `--json`) in the current directory, based on the installed CLIs and their current project/profile/subscription. `--force` overwrites an existing config. In a terminal, it then offers to install the [agent skill](./agents) with `bunx skills add NexiHealth/cloudsesame`.
 
 ## Options
 

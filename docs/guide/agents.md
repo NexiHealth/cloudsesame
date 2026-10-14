@@ -4,13 +4,14 @@ cloudsesame is designed to be agent-friendly: without a terminal it never hangs 
 
 ## Skill
 
-The package ships an [Agent Skill](https://github.com/NexiHealth/cloudsesame/blob/main/skills/cloudsesame/SKILL.md) that teaches agents to set cloudsesame up in a project and to handle its failures: ask you to run the login rather than attempting it, and use `--skip` when the task doesn't need the cloud.
+cloudsesame ships an [Agent Skill](https://github.com/NexiHealth/cloudsesame/blob/main/skills/cloudsesame/SKILL.md) that teaches agents to set it up in a project and to handle its failures: ask you to run logins rather than attempting them, and use `--skip` when the task doesn't need the cloud.
 
-Install it for Claude Code in a project:
+`cloudsesame init` offers to install it. Or install it with the [`skills` CLI](https://github.com/vercel-labs/skills), which supports Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot and many more:
 
 ```sh
-mkdir -p .claude/skills
-cp -r node_modules/cloudsesame/skills/cloudsesame .claude/skills/
+bunx skills add NexiHealth/cloudsesame          # or: npx skills add NexiHealth/cloudsesame
+bunx skills add NexiHealth/cloudsesame -g       # for all your projects
+bunx skills update                              # pull the latest version later
 ```
 
-Or for all your projects, copy it to `~/.claude/skills/` instead. Other agents that support skills read the same `SKILL.md` format.
+Without the `skills` CLI, copy `skills/cloudsesame/` (also in the npm package, under `node_modules/cloudsesame/skills/`) into your agent's skills folder, e.g. `.claude/skills/`.

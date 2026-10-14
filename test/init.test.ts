@@ -38,3 +38,10 @@ test("rendered JSON config has the schema", async () => {
   const json = JSON.parse(renderConfig({ config: { aws: {} }, otherAwsProfiles: [] }, "json"));
   expect(json).toEqual({ $schema: SCHEMA_URL, aws: {} });
 });
+
+test("skill install command prefers bunx, falls back to npx", async () => {
+  const { skillInstallCommand } = await import("../src/core/init");
+  expect(skillInstallCommand(installed("bunx", "npx"))).toEqual(["bunx", "skills", "add", "NexiHealth/cloudsesame"]);
+  expect(skillInstallCommand(installed("npx"))).toEqual(["npx", "-y", "skills", "add", "NexiHealth/cloudsesame"]);
+  expect(skillInstallCommand(installed())).toBeUndefined();
+});
