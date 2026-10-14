@@ -27,6 +27,16 @@ jobs:
         shell: bash
       - run: node dist/cli.js check --plain || [ $? -eq 4 ]
         shell: bash
+      # Regression: a TS config in a CommonJS package (npm init's default) must load on Node.
+      - name: TS config in a CommonJS project
+        shell: bash
+        run: |
+          dir=$(mktemp -d)
+          echo '{ "name": "t", "type": "commonjs" }' > "$dir/package.json"
+          printf 'import type { Config } from "cloudsesame";\nexport default { onlineCheck: false } satisfies Config;\n' > "$dir/sesame.config.ts"
+          code=0
+          node dist/cli.js check --plain -c "$dir/sesame.config.ts" || code=$?
+          [ "$code" -ne 2 ]
 
   # Old Node: Ink can't load, so commands must fall back to plain output.
   node-compat:
