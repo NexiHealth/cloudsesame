@@ -1,0 +1,75 @@
+name: Release
+
+# Push a tag like v1.2.3 to release.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  # Binaries -> GitHub Release, Homebrew tap, Scoop bucket, winget PR.
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # PAT with write access to OWNER/homebrew-tap, OWNER/scoop-bucket and OWNER/winget-pkgs.
+          PACKAGES_GITHUB_TOKEN: ${{ secrets.PACKAGES_GITHUB_TOKEN }}
+          WINGET_ENABLED: ${{ vars.WINGET_ENABLED }}
+
+  # JS bundle -> npm (bunx cloudsesame / npx cloudsesame).
+  npm:
+    runs-on: ubuntu-latest
+    needs: goreleaser
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing + provenance
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: bun install --frozen-lockfile
+      - run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version
+      - run: npm publish --provenance --access public
+        env:
+          # Optional once trusted publishing is configured on npmjs.com.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # Release zip -> Chocolatey. Needs choco, hence Windows. Skipped until CHOCOLATEY_API_KEY is set.
+  chocolatey:
+    runs-on: windows-latest
+    needs: goreleaser
+    env:
+      CHOCOLATEY_API_KEY: ${{ secrets.CHOCOLATEY_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        if: env.CHOCOLATEY_API_KEY != ''
+      - name: Pack and push
+        if: env.CHOCOLATEY_API_KEY != ''
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $version = "$env:GITHUB_REF_NAME".TrimStart('v')
+          $zip = "cloudsesame_${version}_windows_amd64.zip"
+          gh release download $env:GITHUB_REF_NAME --pattern checksums.txt
+          $sha = ((Get-Content checksums.txt | Select-String " $zip$").Line -split '\s+')[0]
+          if (-not $sha) { throw "No checksum for $zip" }
+          $url = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$env:GITHUB_REF_NAME/$zip"
+          $install = 'packaging/chocolatey/tools/chocolateyinstall.ps1'
+          (Get-Content $install) -replace '__URL__', $url -replace '__SHA256__', $sha | Set-Content $install
+          choco pack packaging/chocolatey/cloudsesame.nuspec --version $version --outputdirectory .
+          choco push "cloudsesame.$version.nupkg" --source https://push.chocolatey.org/ --api-key $env:CHOCOLATEY_API_KEY

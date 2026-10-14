@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Version is passed at pack time: choco pack --version <x.y.z> -->
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>cloudsesame</id>
+    <version>0.0.0</version>
+    <title>cloudsesame</title>
+    <authors>OWNER</authors>
+    <owners>OWNER</owners>
+    <projectUrl>https://github.com/OWNER/cloudsesame</projectUrl>
+    <packageSourceUrl>https://github.com/OWNER/cloudsesame/tree/main/packaging/chocolatey</packageSourceUrl>
+    <licenseUrl>https://github.com/OWNER/cloudsesame/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <tags>cloudsesame cli</tags>
+    <summary>cloudsesame CLI</summary>
+    <description>cloudsesame CLI</description>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>
