@@ -12,7 +12,7 @@ Bun + TypeScript CLI that checks connectivity and gcloud/aws/az logins before de
   - `config/`: `types.ts` (public API), `schema.ts` (zod), `load.ts` (find up to git root, TS/JSON)
   - `providers/`: gcloud, aws, az. Each returns `Status[]` with a `fix` command; never prompts or logs in
   - `flow/`: the engine. `run.ts` (online -> checks -> resolve each target), `policy.ts` (flags > config > defaults), `types.ts` (`Ui`, `FlowEvent`, `FlowResult`)
-  - `targets.ts`, `check.ts`, `deps.ts` (injectable exec/which/isOnline), `exec.ts`, `online.ts`, `init.ts`, `exit.ts`
+  - `targets.ts`, `check.ts`, `deps.ts` (injectable exec/which/isOnline/http/readFile/env), `http.ts`, `exec.ts`, `online.ts`, `init.ts`, `exit.ts`
 - `src/ui/`: front ends implementing `Ui`
   - `plain.ts`: line output + readline prompts
   - `ink/`: lazy-loaded Ink UI. `flow.tsx` (engine <-> React bridge), `flow-app.tsx`, `store.ts` (event reducer), `select.tsx`, `vault.tsx`
@@ -38,7 +38,7 @@ bun run docs:dev
 
 ## Rules
 
-- `src/core` has no UI and no direct side effects: shell out and probe the network through `Deps`.
+- `src/core` has no UI and no direct side effects: shell out, call HTTP APIs and probe the network through `Deps`.
 - New provider: implement `Provider` in `src/core/providers/`, add it to `providers/index.ts`, `providerIds` in `schema.ts`, the target type in `types.ts`, and docs.
 - New flow behavior goes in `src/core/flow/run.ts` and is exposed to UIs as `FlowEvent`s; both UIs must handle every event.
 - Every command implements `plain` and `ink`. Plain mode = `--plain`, `CLOUDSESAME_PLAIN=1`, or Node < 22.

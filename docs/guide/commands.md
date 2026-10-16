@@ -90,6 +90,6 @@ When there's no terminal (CI, agents, piped input) or with `--no-input`, a promp
 | 1 | Unexpected error |
 | 2 | Invalid arguments or config |
 | 3 | Offline |
-| 4 | A provider isn't ready: not logged in, wrong account/project, or CLI missing |
+| 4 | A provider isn't ready: not logged in, wrong account/project, missing permissions, or CLI missing |
 | 5 | Stopped by the user |
 | 130 | Interrupted (Ctrl-C) |

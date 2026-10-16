@@ -11,21 +11,32 @@ const gcloud: z.ZodType<GcloudTarget> = z
     account: z.string().optional(),
     project: z.string().optional(),
     quotaProject: z.string().optional(),
+    permissions: z.array(z.string().regex(/^[a-zA-Z0-9]+(\.[a-zA-Z0-9]+){2}$/, 'must be an IAM permission like "aiplatform.endpoints.predict"')).nonempty().optional(),
   })
   .refine((t) => !(t.quotaProject && t.credentials === "user"), {
     message: 'quotaProject applies to ADC; use credentials "adc" or "both"',
     path: ["quotaProject"],
-  });
+  })
+  .refine((t) => !(t.permissions && !t.project), { message: "permissions are checked on a project; set project", path: ["permissions"] });
 
 const aws: z.ZodType<AwsTarget> = z.strictObject({
   profile: z.string().optional(),
   accountId: z.string().regex(/^\d{12}$/, "must be a 12-digit AWS account ID").optional(),
 });
 
-const az: z.ZodType<AzTarget> = z.strictObject({
-  tenant: z.string().optional(),
-  subscription: z.string().optional(),
-});
+const azureActions = z
+  .array(z.string().regex(/^[\w.-]+\/\S+$/, 'must be an Azure action like "Microsoft.Storage/storageAccounts/read"'))
+  .nonempty();
+
+const az: z.ZodType<AzTarget> = z
+  .strictObject({
+    tenant: z.string().optional(),
+    subscription: z.string().optional(),
+    actions: azureActions.optional(),
+    dataActions: azureActions.optional(),
+    permissionScope: z.string().regex(/^\/subscriptions\/[^/]+(\/.*)?$/, 'must be a resource ID starting with "/subscriptions/"').optional(),
+  })
+  .refine((t) => !(t.permissionScope && !t.actions && !t.dataActions), { message: "permissionScope needs actions or dataActions", path: ["permissionScope"] });
 
 export const providerIds = ["gcloud", "aws", "az"] as const;
 

@@ -44,7 +44,7 @@ Options:
 Without a terminal, prompts fail (exit 4) unless --skip is passed or the config sets noTerminal: "skip".
 
 Exit codes:
-  0 ready · 1 error · 2 usage/config error · 3 offline · 4 not authenticated · 5 stopped · 130 interrupted`;
+  0 ready · 1 error · 2 usage/config error · 3 offline · 4 not ready (login, account, permissions) · 5 stopped · 130 interrupted`;
 
 const enumFlag = <T extends string>(name: string, value: string | undefined, allowed: readonly T[]): T | undefined => {
   if (value === undefined || (allowed as readonly string[]).includes(value)) return value as T | undefined;

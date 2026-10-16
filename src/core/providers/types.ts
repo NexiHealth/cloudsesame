@@ -2,7 +2,8 @@ import type { Deps } from "../deps";
 import type { Exec } from "../exec";
 import type { ProviderId } from "../config/types";
 
-export type State = "ok" | "unauthenticated" | "mismatch" | "missing" | "error";
+/** `denied`: authenticated, but missing permissions. Logging in again doesn't fix it, so it never has a `fix`. */
+export type State = "ok" | "unauthenticated" | "mismatch" | "denied" | "missing" | "error";
 
 export interface Status {
   provider: ProviderId;
@@ -19,6 +20,7 @@ export interface Status {
 
 export interface CheckContext {
   exec: Exec;
+  http: Deps["http"];
   readFile: Deps["readFile"];
   env: Deps["env"];
   timeout: number;

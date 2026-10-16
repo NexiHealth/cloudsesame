@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import { aws } from "../src/core/providers/aws";
-import { az } from "../src/core/providers/az";
+import type { Http } from "../src/core/http";
+import { az, isAllowed } from "../src/core/providers/az";
 import { adcPath, gcloud } from "../src/core/providers/gcloud";
 import { ctx, fakeExec } from "./helpers";
 
@@ -92,6 +93,79 @@ describe("gcloud", () => {
   });
 });
 
+describe("gcloud permissions", () => {
+  const loggedIn = {
+    "gcloud auth print-access-token": { stdout: "user-tok\n" },
+    "gcloud auth application-default print-access-token": { stdout: "adc-tok\n" },
+    "gcloud config get-value account": { stdout: "me@x.com\n" },
+    "gcloud config get-value project": { stdout: "proj-a\n" },
+  };
+  const target = { project: "proj-a", permissions: ["aiplatform.endpoints.predict", "speech.recognizers.recognize"] };
+
+  /** Fake testIamPermissions that grants `granted` and records requests. */
+  function iam(granted: string[] | number) {
+    const requests: Array<{ url: string; auth?: string; body?: string }> = [];
+    const http: Http = async (url, init) => {
+      requests.push({ url, auth: init.headers?.authorization, body: init.body });
+      return typeof granted === "number"
+        ? { status: granted, body: JSON.stringify({ error: { message: "Permission denied on resource project proj-a." } }) }
+        : { status: 200, body: JSON.stringify(granted.length ? { permissions: granted } : {}) };
+    };
+    return { http, requests };
+  }
+
+  test("ok when every permission is granted; tested with the ADC token", async () => {
+    const { http, requests } = iam(target.permissions);
+    const statuses = await gcloud.check(target, ctx(fakeExec(loggedIn).exec, {}, http));
+    expect(statuses.find((s) => s.label === "permissions")).toEqual({ provider: "gcloud", label: "permissions", state: "ok", identity: "proj-a" });
+    expect(requests).toEqual([
+      {
+        url: "https://cloudresourcemanager.googleapis.com/v1/projects/proj-a:testIamPermissions",
+        auth: "Bearer adc-tok",
+        body: JSON.stringify({ permissions: target.permissions }),
+      },
+    ]);
+  });
+
+  test("missing permissions are denied, with no fix", async () => {
+    const { http } = iam(["aiplatform.endpoints.predict"]);
+    const statuses = await gcloud.check(target, ctx(fakeExec(loggedIn).exec, {}, http));
+    expect(statuses.find((s) => s.label === "permissions")).toEqual({
+      provider: "gcloud",
+      label: "permissions",
+      state: "denied",
+      identity: "proj-a",
+      message: "missing speech.recognizers.recognize",
+    });
+    // An empty response means nothing is granted.
+    const none = await gcloud.check(target, ctx(fakeExec(loggedIn).exec, {}, iam([]).http));
+    expect(none.find((s) => s.label === "permissions")?.message).toBe("missing aiplatform.endpoints.predict, speech.recognizers.recognize");
+  });
+
+  test("user credentials use the user token", async () => {
+    const { http, requests } = iam(target.permissions);
+    await gcloud.check({ ...target, credentials: "user" }, ctx(fakeExec(loggedIn).exec, {}, http));
+    expect(requests[0]?.auth).toBe("Bearer user-tok");
+  });
+
+  test("no access to the project is denied; other failures are errors", async () => {
+    const forbidden = await gcloud.check(target, ctx(fakeExec(loggedIn).exec, {}, iam(403).http));
+    expect(forbidden.find((s) => s.label === "permissions")).toMatchObject({ state: "denied", message: "no access to project proj-a: Permission denied on resource project proj-a." });
+    const broken = await gcloud.check(target, ctx(fakeExec(loggedIn).exec, {}, iam(500).http));
+    expect(broken.find((s) => s.label === "permissions")).toMatchObject({ state: "error", message: "testIamPermissions failed: Permission denied on resource project proj-a." });
+    const offline = await gcloud.check(target, ctx(fakeExec(loggedIn).exec));
+    expect(offline.find((s) => s.label === "permissions")).toMatchObject({ state: "error", message: "testIamPermissions failed: no network in tests" });
+  });
+
+  test("not tested until the login works", async () => {
+    const { http, requests } = iam(target.permissions);
+    const exec = fakeExec({ ...loggedIn, "gcloud auth application-default print-access-token": { code: 1, stderr: "no creds" } }).exec;
+    const statuses = await gcloud.check(target, ctx(exec, {}, http));
+    expect(statuses.some((s) => s.label === "permissions")).toBe(false);
+    expect(requests).toEqual([]);
+  });
+});
+
 describe("aws", () => {
   const identity = { stdout: JSON.stringify({ Account: "123456789012", Arn: "arn:aws:sts::123456789012:assumed-role/Admin/me" }) };
 
@@ -150,5 +224,77 @@ describe("az", () => {
     const { exec } = fakeExec({ "az account show": account, "az account get-access-token": token });
     const [s] = await az.check({ subscription: "Dev" }, ctx(exec));
     expect(s).toMatchObject({ state: "mismatch", fix: ["az", "account", "set", "--subscription", "Dev"] });
+  });
+});
+
+describe("az permissions", () => {
+  const account = { stdout: JSON.stringify({ id: "sub-1", name: "Prod", tenantId: "t-1", user: { name: "me@x.com" } }) };
+  const contributor = { actions: ["*"], notActions: ["Microsoft.Authorization/*/Write"], dataActions: [], notDataActions: [] };
+  const openAiUser = { actions: [], notActions: [], dataActions: ["Microsoft.CognitiveServices/accounts/OpenAI/*"], notDataActions: [] };
+  const chat = "Microsoft.CognitiveServices/accounts/OpenAI/deployments/chat/completions/action";
+
+  const world = (value: object[], extra: Record<string, { code?: number; stdout?: string; stderr?: string }> = {}) =>
+    fakeExec({ "az account show": account, "az account get-access-token": { stdout: "" }, "az rest": { stdout: JSON.stringify({ value }) }, ...extra });
+
+  test("ok when allowed at the subscription by default", async () => {
+    const { exec, calls } = world([contributor, openAiUser]);
+    const statuses = await az.check({ actions: ["Microsoft.Storage/storageAccounts/read"], dataActions: [chat] }, ctx(exec));
+    expect(statuses).toEqual([
+      { provider: "az", label: "account", state: "ok", identity: "me@x.com" },
+      { provider: "az", label: "permissions", state: "ok", identity: "/subscriptions/sub-1" },
+    ]);
+    expect(calls).toContain("az rest --method get --url /subscriptions/sub-1/providers/Microsoft.Authorization/permissions?api-version=2022-04-01 --output json --only-show-errors");
+  });
+
+  test("missing permissions are denied at a custom scope", async () => {
+    const scope = "/subscriptions/sub-1/resourceGroups/ai";
+    const { exec, calls } = world([contributor]);
+    const [, s] = await az.check({ actions: ["Microsoft.Authorization/roleAssignments/write"], dataActions: [chat], permissionScope: scope }, ctx(exec));
+    expect(s).toEqual({
+      provider: "az",
+      label: "permissions",
+      state: "denied",
+      identity: scope,
+      message: `missing Microsoft.Authorization/roleAssignments/write, ${chat}`,
+    });
+    expect(calls.some((c) => c.includes(`--url ${scope}/providers/Microsoft.Authorization/permissions`))).toBe(true);
+  });
+
+  test("follows nextLink", async () => {
+    let page = 0;
+    const base = world([]).exec;
+    const exec = async (cmd: string, args: string[]) => {
+      if (args[0] !== "rest") return base(cmd, args);
+      page++;
+      return page === 1
+        ? { code: 0, stderr: "", stdout: JSON.stringify({ value: [], nextLink: "https://management.azure.com/next" }) }
+        : { code: 0, stderr: "", stdout: JSON.stringify({ value: [openAiUser] }) };
+    };
+    const [, s] = await az.check({ dataActions: [chat] }, ctx(exec));
+    expect([s?.state, page]).toEqual(["ok", 2]);
+  });
+
+  test("forbidden scope is denied; other failures are errors", async () => {
+    const forbidden = world([], { "az rest": { code: 1, stderr: "ERROR: (AuthorizationFailed) The client does not have authorization" } });
+    expect((await az.check({ dataActions: [chat] }, ctx(forbidden.exec)))[1]).toMatchObject({ state: "denied", message: "no access to /subscriptions/sub-1" });
+    const broken = world([], { "az rest": { code: 1, stderr: "ERROR: Connection reset" } });
+    expect((await az.check({ dataActions: [chat] }, ctx(broken.exec)))[1]).toMatchObject({ state: "error", message: "Connection reset" });
+  });
+
+  test("not checked while the subscription is wrong", async () => {
+    const { exec, calls } = world([contributor]);
+    expect(await az.check({ subscription: "Dev", dataActions: [chat] }, ctx(exec))).toHaveLength(1);
+    expect(calls.some((c) => c.startsWith("az rest"))).toBe(false);
+  });
+
+  test("isAllowed: wildcards, case, notActions within the same role", () => {
+    expect(isAllowed([contributor], "Microsoft.Compute/virtualMachines/start/action")).toBe(true);
+    expect(isAllowed([contributor], "microsoft.authorization/roleAssignments/write")).toBe(false);
+    expect(isAllowed([contributor, { actions: ["Microsoft.Authorization/roleAssignments/*"] }], "Microsoft.Authorization/roleAssignments/write")).toBe(true);
+    expect(isAllowed([contributor], chat, true)).toBe(false); // actions don't grant data actions
+    expect(isAllowed([openAiUser], chat, true)).toBe(true);
+    expect(isAllowed([openAiUser], chat)).toBe(false); // nor the other way round
+    expect(isAllowed([{ dataActions: ["*"], notDataActions: [chat] }], chat, true)).toBe(false);
+    expect(isAllowed([{ actions: ["Microsoft.Storage/*/read"] }], "Microsoft.Storage/storageAccounts/blobServices/read")).toBe(true);
   });
 });

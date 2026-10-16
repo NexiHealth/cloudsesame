@@ -125,6 +125,24 @@ describe("unauthenticated", () => {
     expect([ui.prompts, ui.handOffs, ui.of("error")]).toEqual([[], [], []]);
   });
 
+  test("denied permissions: no fix, so only skip/stop; login policy fails without a hand-off", async () => {
+    const exec = fakeExec({
+      "gcloud auth application-default print-access-token": { stdout: "tok" },
+      "gcloud config get-value": { stdout: "p\n" },
+    }).exec;
+    const http = async () => ({ status: 200, body: "{}" });
+    const opts = (p: Partial<Policies> = {}): FlowOptions => ({
+      ...options(p),
+      targets: [{ provider: "gcloud", target: { credentials: "adc", project: "p", permissions: ["aiplatform.endpoints.predict"] } }],
+    });
+    const ui = new ScriptedUi(["skip"]);
+    expect((await runFlow(opts(), ui, deps({ exec, http }))).code).toBe(0);
+    expect(ui.prompts).toEqual([{ message: "gcloud p isn't ready.", choices: ["skip", "stop"] }]);
+    const login = new ScriptedUi();
+    expect((await runFlow(opts({ unauthenticated: "login" }), login, deps({ exec, http }))).code).toBe(4);
+    expect(login.handOffs).toEqual([]);
+  });
+
   test("missing CLI without a fix: prompt offers only skip/stop", async () => {
     const ui = new ScriptedUi(["skip"]);
     await runFlow(options(), ui, deps({ which: () => undefined }));

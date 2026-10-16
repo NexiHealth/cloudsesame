@@ -1,7 +1,7 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { GcloudTarget } from "../config/types";
-import { firstLine as rawFirstLine, type Provider, type Status } from "./types";
+import { type CheckContext, firstLine as rawFirstLine, type Provider, type Status } from "./types";
 
 const firstLine = (stderr: string) => (/reauthentication/i.test(stderr) ? "reauthentication required" : rawFirstLine(stderr));
 
@@ -24,7 +24,7 @@ export const gcloud: Provider<GcloudTarget> = {
   id: "gcloud",
   cli: "gcloud",
   install: "https://cloud.google.com/sdk/docs/install",
-  async check(target, { exec, readFile, env, timeout }) {
+  async check(target, { exec, http, readFile, env, timeout }) {
     const credentials = target.credentials ?? "both";
     const wantUser = credentials !== "adc";
     const wantAdc = credentials !== "user";
@@ -73,6 +73,12 @@ export const gcloud: Provider<GcloudTarget> = {
       }
     }
 
+    // Permissions are tested with the credentials the target uses: ADC if it wants them (SDKs), else the user login.
+    const token = wantAdc ? adcToken : userToken;
+    if (target.permissions && target.project && token?.code === 0) {
+      statuses.push(await testPermissions(http, token.stdout.trim(), target.project, target.permissions, timeout));
+    }
+
     if (project && target.project) {
       const active = project.stdout.trim() || undefined;
       statuses.push(
@@ -85,3 +91,29 @@ export const gcloud: Provider<GcloudTarget> = {
     return statuses;
   },
 };
+
+/** Which of `permissions` the token's principal holds on the project (`projects.testIamPermissions`). */
+async function testPermissions(http: CheckContext["http"], token: string, project: string, permissions: string[], timeout: number): Promise<Status> {
+  const res = await http(`https://cloudresourcemanager.googleapis.com/v1/projects/${encodeURIComponent(project)}:testIamPermissions`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ permissions }),
+    timeout,
+  });
+  const base = { provider: "gcloud", label: "permissions", identity: project } as const;
+  // 403/404: no access to the project at all (or it doesn't exist). Google's message says which, e.g. a disabled API.
+  if (res.status === 403 || res.status === 404) return { ...base, state: "denied", message: `no access to project ${project}: ${apiError(res)}` };
+  if (res.status !== 200) return { ...base, state: "error", message: `testIamPermissions failed: ${apiError(res)}` };
+  const granted = new Set((JSON.parse(res.body) as { permissions?: string[] }).permissions ?? []);
+  const missing = permissions.filter((p) => !granted.has(p));
+  return missing.length > 0 ? { ...base, state: "denied", message: `missing ${missing.join(", ")}` } : { ...base, state: "ok" };
+}
+
+function apiError(res: { status: number; body: string }): string {
+  if (res.status === 0) return res.body;
+  try {
+    return (JSON.parse(res.body) as { error?: { message?: string } }).error?.message ?? `HTTP ${res.status}`;
+  } catch {
+    return `HTTP ${res.status}`;
+  }
+}
