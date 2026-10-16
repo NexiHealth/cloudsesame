@@ -11,7 +11,8 @@ export type ColorDepth = "truecolor" | "256";
 type Rgb = readonly [number, number, number];
 
 const R = 0.62; // door radius
-const FRAME = R * 1.2; // outer radius of the steel frame
+/** Outer radius of the steel frame, in scene units. */
+export const FRAME = R * 1.2;
 const BOLTS = 10;
 const RIVETS = 16;
 

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Bun + TypeScript CLI that checks connectivity and gcloud/aws/az logins before dev or infra work, and helps log in. UI built with Ink (React for the terminal). Ships as an npm package (`bunx cloudsesame`) and as standalone binaries (Homebrew, Scoop, winget, Chocolatey).
+Bun + TypeScript CLI that checks connectivity and gcloud/aws/az logins before dev or infra work, and helps log in. UI built with Ink (React for the terminal). Ships as an npm package (`bunx cloudsesame`) and as standalone binaries (Homebrew, Scoop, Chocolatey; winget is disabled for now).
 
 ## Structure
 
@@ -19,8 +19,8 @@ Bun + TypeScript CLI that checks connectivity and gcloud/aws/az logins before de
   - `vault/scene.ts`: the animation as a pure function (time, size) -> ANSI lines
 - `src/shims/`: build-time stubs (aliased in `tsconfig.json` `paths`)
 - `test/`: `bun test`. `helpers.ts`: `fakeExec`, `deps()`, `ScriptedUi`
-- `scripts/`: `build.ts` (npm: bundle + `dist/schema.json` + `dist/index.d.ts`), `build-binaries.ts`, `preview-vault.tsx`, `render-banner.ts` (README banner from the animation)
-- `docs/`: VitePress site (GitHub Pages)
+- `scripts/`: `build.ts` (npm: bundle + `dist/schema.json` + `dist/index.d.ts`), `build-binaries.ts`, `preview-vault.tsx`, `render-banner.ts` (README banner and docs images in `docs/public/` from the animation)
+- `docs/`: VitePress site (GitHub Pages). Custom theme in `docs/.vitepress/theme/` (`custom.css`, `components/`)
 - `skills/cloudsesame/SKILL.md`: Agent Skill for projects that use cloudsesame. Layout follows the `skills` CLI (`bunx skills add NexiHealth/cloudsesame`); also shipped in the npm package. `init` offers to install it (`SKILL_SOURCE` in `src/core/init.ts`)
 - `.goreleaser.yaml`, `packaging/chocolatey/`, `.github/workflows/`: distribution and CI
 
@@ -55,7 +55,7 @@ bun run docs:dev
 ## Releases
 
 1. `git tag vX.Y.Z && git push origin vX.Y.Z`
-2. `release.yml` runs GoReleaser (binaries, GitHub Release, brew/scoop/winget), then `npm publish` (version comes from the tag), then Chocolatey on Windows.
+2. `release.yml` runs GoReleaser (binaries, GitHub Release, brew/scoop; winget disabled), then `npm publish` (version comes from the tag), then Chocolatey on Windows.
 3. `package.json` version stays `0.0.0` in the repo; don't bump it manually.
 
 Dry run: `bun run release:snapshot` (writes to `dist-release/`; needs `goreleaser`).

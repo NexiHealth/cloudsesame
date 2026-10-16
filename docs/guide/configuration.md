@@ -1,10 +1,18 @@
 # Configuration
 
-cloudsesame looks for the nearest config file from the current directory up to the git root:
+A config file says which clouds a project needs and what counts as ready. It holds no secrets, so commit it.
+
+## Where it lives
+
+cloudsesame uses the nearest config file, looking from the current directory up to the git root:
 
 `sesame.config.ts` · `sesame.config.mts` · `sesame.config.js` · `sesame.config.mjs` · `sesame.config.json`
 
-Use `--config <file>` to point at one explicitly, or `cloudsesame init` to generate one.
+Use `--config <file>` (`-c`) to point at one explicitly, or `cloudsesame init` to generate one from your installed CLIs (`--json` for JSON, `--force` to overwrite).
+
+::: tip No config?
+With no providers configured, every provider whose CLI is installed is checked with default settings.
+:::
 
 ## TypeScript
 
@@ -31,19 +39,75 @@ The `import type` is erased at runtime, so cloudsesame doesn't need to be instal
 }
 ```
 
-## Options
+The `$schema` gives you validation and autocompletion in editors that support JSON Schema.
+
+## Providers
+
+Each provider takes one target or a list of targets. Every target is checked separately: two AWS profiles are two checks, each with its own login. See [Providers](./providers) for exactly what is checked.
+
+### `gcloud`
+
+| Field | Default | Description |
+| --- | --- | --- |
+| `credentials` | `"both"` | `"user"`: the gcloud CLI login (`gcloud auth login`), for scripts that call `gcloud`. `"adc"`: Application Default Credentials, used by Google SDKs and OpenTofu/Terraform (`gcloud auth application-default login`). `"both"`: both of these. |
+| `account` | | Expected active account (email). |
+| `project` | | Expected active project ID. |
+| `quotaProject` | | Expected quota project of user ADC: the project billed for API quota when SDKs and OpenTofu/Terraform call Google APIs as you. Fixed with `gcloud auth application-default set-quota-project`. Needs `credentials` `"adc"` or `"both"`. Not checked for service account credentials. |
+
+### `aws`
+
+| Field | Default | Description |
+| --- | --- | --- |
+| `profile` | `AWS_PROFILE`, then `default` | Profile from `~/.aws/config`. |
+| `accountId` | | Expected 12-digit AWS account ID. |
+
+### `az`
+
+| Field | Default | Description |
+| --- | --- | --- |
+| `tenant` | | Expected tenant ID. Also passed to `az login --tenant`. |
+| `subscription` | | Expected subscription, by ID or name. |
+
+## Groups
+
+Name the sets of providers your workflows need, then pass the group name as an argument:
+
+```ts
+export default {
+  gcloud: { credentials: "adc" },
+  aws: { profile: "prod" },
+  az: {},
+  groups: { infra: ["gcloud", "aws"] },
+} satisfies Config;
+```
+
+```sh
+cloudsesame infra          # auth for gcloud and aws only
+cloudsesame check infra    # report for gcloud and aws only
+```
+
+Group names work anywhere a provider name does, and you can mix them: `cloudsesame infra az`.
+
+## Behavior
+
+These decide what happens when something isn't ready. [Flags](./commands#options) override them for a single run.
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `gcloud` | | One target or a list. `credentials`: `user` \| `adc` \| `both` (default `both`), `account`, `project`, `quotaProject` (quota project of user ADC, fixed with `gcloud auth application-default set-quota-project`) |
-| `aws` | | One target or a list. `profile` (default `AWS_PROFILE`, then `default`), `accountId` |
-| `az` | | One target or a list. `tenant`, `subscription` (ID or name) |
-| `groups` | | Named sets of providers: `{ "infra": ["gcloud", "aws"] }` → `cloudsesame check infra` |
-| `onlineCheck` | `"www.gstatic.com:443"` | `host:port` probed to detect connectivity, or `false` |
-| `timeout` | `20000` | Timeout per check, in ms |
-| `offline` | `"prompt"` | `predev` when offline: `prompt` \| `continue` \| `fail` (`auth` always fails offline) |
-| `unauthenticated` | `"prompt"` | When a provider isn't ready: `prompt` (log in / skip / stop) \| `login` \| `skip` \| `fail` |
-| `noTerminal` | `"fail"` | What `prompt` becomes without a terminal: `fail` \| `skip` |
-| `animation` | `"after-login"` | Open-sesame animation when everything is ready: `after-login` \| `always` \| `never`. Never plays without a terminal, in CI, or with `NO_COLOR` |
+| `offline` | `"prompt"` | `predev` when offline: `"prompt"` asks whether to continue, `"continue"` warns and continues, `"fail"` exits. `auth` always fails offline. |
+| `unauthenticated` | `"prompt"` | When a provider isn't ready: `"prompt"` asks (log in / skip / stop), `"login"` logs in right away, `"skip"` warns and continues, `"fail"` exits. |
+| `noTerminal` | `"fail"` | What `"prompt"` becomes without a terminal (CI, agents, pipes): `"fail"` or `"skip"`. |
+| `animation` | `"after-login"` | The open-sesame animation when everything is ready: `"after-login"`, `"always"` or `"never"`. Never plays without a terminal, in CI, or with `NO_COLOR`. |
 
-With no providers configured, every provider whose CLI is installed is checked with default settings.
+## Connectivity
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `onlineCheck` | `"www.gstatic.com:443"` | `host:port` probed (TCP) to detect connectivity, or `false` to skip the check. |
+| `timeout` | `20000` | Timeout per check, in milliseconds. |
+
+## Validation
+
+An invalid config exits with code 2 and names the field, for example `aws[1].accountId` when an account ID isn't 12 digits, or `gcloud[0].quotaProject` when it's set with `credentials: "user"`. Unknown fields are errors too, so typos don't go unnoticed.
+
+Ready-made configs for common setups are in [Recipes](./recipes).

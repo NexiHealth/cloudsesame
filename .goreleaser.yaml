@@ -101,7 +101,10 @@ winget:
     short_description: cloudsesame CLI
     homepage: https://github.com/NexiHealth/cloudsesame
     license: Apache-2.0
-    skip_upload: '{{ if index .Env "WINGET_ENABLED" }}false{{ else }}true{{ end }}' # set the WINGET_ENABLED repo variable once your winget-pkgs fork exists
+    # Disabled for now. To enable: fork microsoft/winget-pkgs to NexiHealth/winget-pkgs, replace with
+    # '{{ if index .Env "WINGET_ENABLED" }}false{{ else }}true{{ end }}', set the WINGET_ENABLED repo variable,
+    # and restore the winget lines commented out in README.md, docs/index.md and docs/guide/installation.md.
+    skip_upload: true
     repository:
       owner: NexiHealth
       name: winget-pkgs
