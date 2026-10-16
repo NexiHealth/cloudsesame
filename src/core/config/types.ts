@@ -26,6 +26,12 @@ export interface GcloudTarget {
    * Requires `credentials` `adc` or `both`. Not checked for service account credentials.
    */
   quotaProject?: string;
+  /**
+   * IAM permissions you must hold on `project`, e.g. `["aiplatform.endpoints.predict"]`.
+   * Tested with the ADC credentials (the user login with `credentials: "user"`). Requires `project`.
+   * Covers project-level IAM only: not whether the API is enabled, nor resource-level policies.
+   */
+  permissions?: string[];
 }
 
 export interface AwsTarget {
@@ -40,6 +46,23 @@ export interface AzTarget {
   tenant?: string;
   /** Expected subscription ID or name. */
   subscription?: string;
+  /**
+   * Azure RBAC control-plane actions you must be allowed at `permissionScope`, e.g. `["Microsoft.Storage/storageAccounts/read"]`.
+   * Deny assignments aren't taken into account.
+   */
+  actions?: string[];
+  /**
+   * Azure RBAC data actions you must be allowed at `permissionScope`, e.g.
+   * `["Microsoft.CognitiveServices/accounts/OpenAI/deployments/chat/completions/action"]`.
+   * Kept apart from `actions` because roles like Contributor allow every action (`*`) but no data actions.
+   */
+  dataActions?: string[];
+  /**
+   * Resource ID to check `actions` and `dataActions` at, e.g. a resource group or resource.
+   * Roles assigned below this scope don't count, so use the scope your code calls.
+   * @default the active subscription
+   */
+  permissionScope?: string;
 }
 
 export interface Config {

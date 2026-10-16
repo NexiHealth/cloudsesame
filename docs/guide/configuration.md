@@ -53,6 +53,7 @@ Each provider takes one target or a list of targets. Every target is checked sep
 | `account` | | Expected active account (email). |
 | `project` | | Expected active project ID. |
 | `quotaProject` | | Expected quota project of user ADC: the project billed for API quota when SDKs and OpenTofu/Terraform call Google APIs as you. Fixed with `gcloud auth application-default set-quota-project`. Needs `credentials` `"adc"` or `"both"`. Not checked for service account credentials. |
+| `permissions` | | IAM permissions you must hold on `project`, e.g. `["aiplatform.endpoints.predict"]`. Missing ones are `denied`. Needs `project`. See [Permissions](./providers#permissions). |
 
 ### `aws`
 
@@ -67,6 +68,9 @@ Each provider takes one target or a list of targets. Every target is checked sep
 | --- | --- | --- |
 | `tenant` | | Expected tenant ID. Also passed to `az login --tenant`. |
 | `subscription` | | Expected subscription, by ID or name. |
+| `actions` | | RBAC actions you must be allowed, e.g. `["Microsoft.Storage/storageAccounts/read"]`. See [Permissions](./providers#permissions). |
+| `dataActions` | | RBAC data actions you must be allowed, e.g. `["Microsoft.CognitiveServices/accounts/OpenAI/deployments/chat/completions/action"]`. |
+| `permissionScope` | the subscription | Resource ID to check `actions` and `dataActions` at, e.g. a resource group or resource. |
 
 ## Groups
 
@@ -108,6 +112,6 @@ These decide what happens when something isn't ready. [Flags](./commands#options
 
 ## Validation
 
-An invalid config exits with code 2 and names the field, for example `aws[1].accountId` when an account ID isn't 12 digits, or `gcloud[0].quotaProject` when it's set with `credentials: "user"`. Unknown fields are errors too, so typos don't go unnoticed.
+An invalid config exits with code 2 and names the field, for example `aws[1].accountId` when an account ID isn't 12 digits, or `gcloud[0].quotaProject` when it's set with `credentials: "user"`, or `gcloud[0].permissions` without a `project`. Unknown fields are errors too, so typos don't go unnoticed.
 
 Ready-made configs for common setups are in [Recipes](./recipes).

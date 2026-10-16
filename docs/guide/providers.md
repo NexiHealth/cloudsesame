@@ -9,6 +9,7 @@ Every check ends in one of these states:
 | `ok` | <span class="cs-sym ok">✔&#xFE0E;</span> | Ready. |
 | `unauthenticated` | <span class="cs-sym err">✖&#xFE0E;</span> | Not logged in, or the login expired. |
 | `mismatch` | <span class="cs-sym warn">!</span> | Logged in, but to the wrong account, project, tenant or subscription. |
+| `denied` | <span class="cs-sym err">✖&#xFE0E;</span> | Logged in, but missing [permissions](#permissions) you asked for. Logging in again doesn't help, so there's no fix to run: ask an admin for the role. |
 | `missing` | <span class="cs-sym err">✖&#xFE0E;</span> | The CLI isn't on your `PATH`. The message links to its install page. |
 | `error` | <span class="cs-sym err">✖&#xFE0E;</span> | Something else went wrong, like an unknown AWS profile. |
 
@@ -22,7 +23,7 @@ Every check has a [timeout](./configuration#connectivity) (20 s by default), and
 gcloud: { credentials: "both", account: "me@acme.dev", project: "acme-dev", quotaProject: "acme-billing" }
 ```
 
-Up to four checks, each shown as its own line:
+Up to five checks, each shown as its own line:
 
 | Check | Runs when | How | Fix |
 | --- | --- | --- | --- |
@@ -30,6 +31,7 @@ Up to four checks, each shown as its own line:
 | **adc** | `credentials` is `"adc"` or `"both"` | `gcloud auth application-default print-access-token` | `gcloud auth application-default login` |
 | **quota project** | `quotaProject` is set and ADC works | Reads `quota_project_id` from the ADC file | `gcloud auth application-default set-quota-project <quotaProject>` |
 | **project** | `project` is set | `gcloud config get-value project` | `gcloud config set project <project>` |
+| **permissions** | `permissions` is set and the login works | [`projects.testIamPermissions`](#permissions) on `project` | None (`denied`) |
 
 - With `credentials: "both"`, the user login fix adds `--update-adc`, so one browser login refreshes both credentials.
 - The quota project is read from the ADC file: `GOOGLE_APPLICATION_CREDENTIALS` if set, otherwise `application_default_credentials.json` in gcloud's config directory (`CLOUDSDK_CONFIG`, or `~/.config/gcloud`, or `%APPDATA%\gcloud` on Windows). It's only checked for user credentials (`authorized_user`), not service accounts. It's checked once ADC works, so a broken ADC login is fixed first. If the file can't be read, that's an `error`.
@@ -71,6 +73,49 @@ One check per target, labeled with the subscription, else the tenant, else `acco
 | Wrong subscription | Active subscription's ID and name both differ from `subscription` | `az account set --subscription <subscription>` |
 
 The identity shown is the signed-in user.
+
+With `actions` or `dataActions`, a second line, **permissions**, checks them once the account, tenant and subscription are right. See [Permissions](#permissions).
+
+## Permissions
+
+Being logged in doesn't mean you can call the API. List the permissions your code needs, and cloudsesame asks the cloud which ones you have. Anything missing is `denied`, with the names in the message:
+
+```
+✖ gcloud permissions  acme-dev: missing aiplatform.endpoints.predict
+```
+
+### gcloud: `permissions`
+
+```ts
+gcloud: { credentials: "adc", project: "acme-dev", permissions: ["aiplatform.endpoints.predict", "speech.recognizers.recognize"] }
+```
+
+- Calls [`projects.testIamPermissions`](https://cloud.google.com/resource-manager/reference/rest/v1/projects/testIamPermissions) on `project`, which returns the subset you hold. Anyone can ask about themselves; no extra role is needed.
+- Uses the ADC token when `credentials` is `"adc"` or `"both"` (what SDKs use), else the user login's token.
+- Needs `project`. No access to the project at all is `denied` too (`no access to project …`, followed by Google's reason).
+- Only project-level IAM: it doesn't see whether the API is enabled, quota, organization policies, or roles granted on a single resource (like a bucket).
+- This is a direct HTTPS call, not a gcloud command. Bun and the standalone binaries honor `HTTPS_PROXY`; Node's built-in `fetch` does not (unless `NODE_USE_ENV_PROXY=1` on Node 24+).
+
+Permission names are listed in Google's [permissions reference](https://cloud.google.com/iam/docs/permissions-reference), or with `gcloud iam roles describe roles/<role>`.
+
+### az: `actions`, `dataActions` and `permissionScope`
+
+```ts
+az: {
+  subscription: "Contoso AI",
+  dataActions: ["Microsoft.CognitiveServices/accounts/OpenAI/deployments/chat/completions/action"],
+  permissionScope: "/subscriptions/…/resourceGroups/ai/providers/Microsoft.CognitiveServices/accounts/contoso-openai",
+}
+```
+
+- Reads [`Microsoft.Authorization/permissions`](https://learn.microsoft.com/rest/api/authorization/permissions) at `permissionScope` through `az rest` (so it uses az's login, cloud and proxy settings), and matches your list against each role's actions, with wildcards and exclusions (`notActions`).
+- `actions` are control-plane operations (manage resources); `dataActions` are data-plane operations (call the model, read blobs). They're separate because Contributor allows every action (`*`) but no data actions.
+- `permissionScope` defaults to the active subscription. Roles assigned lower down (on a resource group or resource) only count when you check at that scope, so point it at the resource your code calls.
+- Deny assignments aren't taken into account.
+
+### aws
+
+Not supported yet. AWS's equivalent (`iam simulate-principal-policy`) needs IAM read permissions that most SSO users don't have, so it would usually report "can't tell".
 
 ## Connectivity
 

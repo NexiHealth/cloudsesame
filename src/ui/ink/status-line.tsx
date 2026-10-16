@@ -2,7 +2,7 @@ import { Box, Text } from "ink";
 import type { State, Status } from "../../core/providers/types";
 import { formatCommand, symbols } from "../format";
 
-const colors: Record<State, string> = { ok: "green", unauthenticated: "red", mismatch: "yellow", missing: "red", error: "red" };
+const colors: Record<State, string> = { ok: "green", unauthenticated: "red", mismatch: "yellow", denied: "red", missing: "red", error: "red" };
 
 export function StatusLine({ status: s }: { status: Status }) {
   return (

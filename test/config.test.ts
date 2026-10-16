@@ -47,6 +47,19 @@ describe("config", () => {
     expect(error.message).toContain("gcloud[0].quotaProject");
   });
 
+  test("permissions: gcloud needs project; names are validated", async () => {
+    const load = async (json: object) => loadConfig({ cwd: project(`perm-${Math.random()}`, { ".git/HEAD": "", "sesame.config.json": JSON.stringify(json) }) }).catch((e) => e);
+    expect((await load({ gcloud: { permissions: ["aiplatform.endpoints.predict"] } })).message).toContain("gcloud[0].permissions");
+    expect((await load({ gcloud: { project: "p", permissions: ["aiplatform.predict"] } })).message).toContain("gcloud[0].permissions[0]");
+    expect((await load({ gcloud: { project: "p", permissions: [] } })).message).toContain("gcloud[0].permissions");
+    expect((await load({ az: { permissionScope: "/subscriptions/s" } })).message).toContain("az[0].permissionScope");
+    expect((await load({ az: { actions: ["Microsoft.Storage/storageAccounts/read"], permissionScope: "rg" } })).message).toContain("az[0].permissionScope");
+    expect((await load({ az: { dataActions: ["read"] } })).message).toContain("az[0].dataActions[0]");
+    expect((await load({ aws: { permissions: ["bedrock:InvokeModel"] } })).message).toContain('"permissions"');
+    const ok = await load({ gcloud: { project: "p", permissions: ["aiplatform.endpoints.predict"] }, az: { actions: ["Microsoft.Storage/storageAccounts/read"], permissionScope: "/subscriptions/s/resourceGroups/rg" } });
+    expect(ok.config.gcloud[0].permissions).toEqual(["aiplatform.endpoints.predict"]);
+  });
+
   test("no config is an empty config", async () => {
     expect(await loadConfig({ cwd: project("none", { ".git/HEAD": "" }) })).toEqual({ config: {} });
   });

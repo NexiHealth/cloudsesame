@@ -6,6 +6,7 @@ Configs for common setups. Copy one, change the names, and run `cloudsesame chec
 <a href="#web-app-on-google-cloud"><strong>Web app on Google Cloud</strong><span>SDKs with Application Default Credentials, checked before <code>dev</code>.</span></a>
 <a href="#infra-repo-opentofu-on-gcp-and-aws"><strong>Infra repo: GCP + AWS</strong><span>OpenTofu with the right accounts, projects and quota project.</span></a>
 <a href="#azure"><strong>Azure</strong><span>Pin the tenant and subscription.</span></a>
+<a href="#ai-apis-vertex-ai-and-azure-openai"><strong>AI APIs</strong><span>Check you can call Vertex AI, Speech or Azure OpenAI, not just that you're logged in.</span></a>
 <a href="#monorepo"><strong>Monorepo</strong><span>A config per package, or groups in one config.</span></a>
 <a href="#never-block-anyone"><strong>Never block anyone</strong><span>Warn about missing logins and carry on.</span></a>
 <a href="#ci-pipelines"><strong>CI pipelines</strong><span>Fail fast with the fix, or skip.</span></a>
@@ -101,6 +102,49 @@ Logged out or in the wrong tenant, cloudsesame offers `az login --tenant 0000000
 ::: warning One subscription at a time
 `az` has a single active subscription, so list one subscription per config. For several environments, keep a config file per environment and pick it with `--config`, e.g. `cloudsesame -c sesame.prod.json`.
 :::
+
+## AI APIs: Vertex AI and Azure OpenAI
+
+A valid login isn't enough to call a model: you also need the role. List the permissions the code uses, and a missing one shows up before the first request fails:
+
+::: code-group
+
+```ts [Google Cloud]
+import type { Config } from "cloudsesame";
+
+export default {
+  gcloud: {
+    credentials: "adc",
+    project: "acme-ai",
+    permissions: [
+      "aiplatform.endpoints.predict", // Vertex AI / Gemini generateContent
+      "speech.recognizers.recognize", // Speech-to-Text v2
+    ],
+  },
+} satisfies Config;
+```
+
+```ts [Azure OpenAI]
+import type { Config } from "cloudsesame";
+
+export default {
+  az: {
+    subscription: "Contoso AI",
+    dataActions: ["Microsoft.CognitiveServices/accounts/OpenAI/deployments/chat/completions/action"],
+    permissionScope:
+      "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/ai/providers/Microsoft.CognitiveServices/accounts/contoso-openai",
+  },
+} satisfies Config;
+```
+
+:::
+
+```
+✔ gcloud adc
+✖ gcloud permissions  acme-ai: missing speech.recognizers.recognize
+```
+
+There's nothing to run for a missing permission, so cloudsesame offers **Skip** or **Stop** and exits with code 4 if it stays missing. It checks IAM only: an API that isn't enabled, or a model you have no quota for, still fails at call time. See [Permissions](./providers#permissions) for the details.
 
 ## Monorepo
 

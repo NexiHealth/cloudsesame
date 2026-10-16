@@ -31,7 +31,7 @@ Never pass `-y`/`--yes` or `--unauthenticated login`: they start interactive log
 | 0 | Ready (or skipped with `--skip`) | Continue |
 | 2 | Bad arguments or invalid config | Read the error; it names the config field (e.g. `aws[1].accountId`) |
 | 3 | Offline | Check connectivity, or `predev --skip` to continue offline |
-| 4 | A provider isn't ready (logged out, wrong account/project, CLI missing) | See above |
+| 4 | A provider isn't ready (logged out, wrong account/project, missing permissions, CLI missing) | See above. For `denied` (missing permissions), logging in doesn't help: tell the user which role to request |
 | 5 | The user chose Stop | Don't retry; ask the user |
 
 ## Setting it up in a project
@@ -73,7 +73,7 @@ Never pass `-y`/`--yes` or `--unauthenticated login`: they start interactive log
 
 ### Choosing settings
 
-- **gcloud `credentials`**: `"adc"` for code that uses Google SDKs or OpenTofu/Terraform (Application Default Credentials), `"user"` for scripts that shell out to `gcloud`, `"both"` (default) when unsure. Add `project`/`account` to catch logins to the wrong one. Add `quotaProject` (needs ADC) when Google APIs called with user ADC must bill quota to a specific project (`gcloud auth application-default set-quota-project`).
+- **gcloud `credentials`**: `"adc"` for code that uses Google SDKs or OpenTofu/Terraform (Application Default Credentials), `"user"` for scripts that shell out to `gcloud`, `"both"` (default) when unsure. Add `project`/`account` to catch logins to the wrong one. Add `permissions` (with `project`) for the IAM permissions the code needs, e.g. `aiplatform.endpoints.predict` for Vertex AI. Add `quotaProject` (needs ADC) when Google APIs called with user ADC must bill quota to a specific project (`gcloud auth application-default set-quota-project`).
 - **aws `profile`**: the profile from `~/.aws/config` the project uses (`aws configure list-profiles`). cloudsesame picks the right login itself (`aws sso login` for SSO profiles, `aws login` for console-login profiles). Add `accountId` to catch the wrong account.
 - **az**: `tenant` and/or `subscription` (ID or name) to pin them.
 - **`groups`**: name the set of providers a workflow needs, so scripts can run `cloudsesame <group>`.
@@ -86,9 +86,9 @@ File: nearest `sesame.config.{ts,mts,js,mjs,json}` from the current directory up
 
 | Key | Default | Values |
 | --- | --- | --- |
-| `gcloud` | | `{ credentials?: "user" \| "adc" \| "both", account?, project?, quotaProject? }` or a list |
+| `gcloud` | | `{ credentials?: "user" \| "adc" \| "both", account?, project?, quotaProject?, permissions?: string[] }` or a list |
 | `aws` | | `{ profile?, accountId? }` or a list |
-| `az` | | `{ tenant?, subscription? }` or a list |
+| `az` | | `{ tenant?, subscription?, actions?: string[], dataActions?: string[], permissionScope? }` or a list |
 | `groups` | | `{ [name]: ("gcloud" \| "aws" \| "az")[] }` |
 | `offline` | `"prompt"` | `"prompt" \| "continue" \| "fail"` (predev) |
 | `unauthenticated` | `"prompt"` | `"prompt" \| "login" \| "skip" \| "fail"` |

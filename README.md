@@ -37,6 +37,7 @@ cloudsesame checks everything in a few seconds before you start:
 - 🌐 **Connectivity.** It knows you're offline before it tries to log you in.
 - 🔑 **Logins.** gcloud (user and Application Default Credentials), AWS (SSO and console login), and Azure.
 - 🎯 **The right account.** Expected gcloud account, project and quota project, AWS account ID, Azure tenant and subscription.
+- 🛂 **The right permissions.** Optional IAM checks on GCP and Azure, so a missing role (say, for Vertex AI) shows up before the first API call fails.
 - 🚪 **One-key fixes.** It runs the exact login for you (`aws sso login --profile prod`), then checks again.
 - 🤖 **CI and AI agents.** No prompts without a terminal: clear exit codes, the command to run, and `--json`.
 
@@ -136,6 +137,23 @@ export default {
 </details>
 
 <details>
+<summary><b>AI APIs</b>: check you can call Vertex AI and Speech-to-Text, not just that you're logged in</summary>
+
+```ts
+export default {
+  gcloud: {
+    credentials: "adc",
+    project: "acme-ai",
+    permissions: ["aiplatform.endpoints.predict", "speech.recognizers.recognize"],
+  },
+} satisfies Config;
+```
+
+A missing permission is reported as `denied` with its name. Logging in doesn't fix it, so cloudsesame offers Skip or Stop. Azure works the same with `actions`, `dataActions` and `permissionScope`. See [Permissions](https://nexihealth.github.io/cloudsesame/guide/providers#permissions).
+
+</details>
+
+<details>
 <summary><b>Azure</b>: pin the tenant and subscription</summary>
 
 ```ts
@@ -164,9 +182,9 @@ export default {
 
 | Option | Default | |
 | --- | --- | --- |
-| `gcloud` | | `{ credentials?: "user" \| "adc" \| "both", account?, project?, quotaProject? }` or a list |
+| `gcloud` | | `{ credentials?: "user" \| "adc" \| "both", account?, project?, quotaProject?, permissions? }` or a list |
 | `aws` | | `{ profile?, accountId? }` or a list. `profile` defaults to `AWS_PROFILE`, then `default` |
-| `az` | | `{ tenant?, subscription? }` or a list |
+| `az` | | `{ tenant?, subscription?, actions?, dataActions?, permissionScope? }` or a list |
 | <a id="groups"></a>`groups` | | Named sets of providers: `{ infra: ["gcloud", "aws"] }` → `cloudsesame infra` |
 | `offline` | `"prompt"` | `predev` when offline: `prompt` · `continue` · `fail` |
 | `unauthenticated` | `"prompt"` | When a provider isn't ready: `prompt` · `login` · `skip` · `fail` |
@@ -217,7 +235,7 @@ Without a terminal, cloudsesame never hangs on a prompt. It fails with exit code
 | `1` | Unexpected error |
 | `2` | Invalid arguments or config |
 | `3` | Offline |
-| `4` | A provider isn't ready: not logged in, wrong account or project, or CLI missing |
+| `4` | A provider isn't ready: not logged in, wrong account or project, missing permissions, or CLI missing |
 | `5` | You chose Stop at a prompt |
 | `130` | Interrupted (Ctrl-C) |
 

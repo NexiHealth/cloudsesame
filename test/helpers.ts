@@ -1,4 +1,5 @@
 import type { Exec, ExecResult } from "../src/core/exec";
+import type { Http } from "../src/core/http";
 
 /** Fake exec keyed by "cmd arg1 arg2..." prefix; unmatched commands fail. Records calls. */
 export function fakeExec(responses: Record<string, Partial<ExecResult>>) {
@@ -14,8 +15,9 @@ export function fakeExec(responses: Record<string, Partial<ExecResult>>) {
   return { exec, calls };
 }
 
-export const ctx = (exec: Exec, files: Record<string, string> = {}) => ({
+export const ctx = (exec: Exec, files: Record<string, string> = {}, http: Http = async () => ({ status: 0, body: "no network in tests" })) => ({
   exec,
+  http,
   readFile: async (path: string) => files[path],
   env: { CLOUDSDK_CONFIG: "/gc" },
   timeout: 1000,
@@ -34,6 +36,7 @@ export function deps(overrides: Partial<Deps> & { online?: boolean } = {}): Deps
     exec: fakeExec({}).exec,
     which: installed("gcloud", "aws", "az"),
     isOnline: async () => overrides.online ?? true,
+    http: async () => ({ status: 0, body: "no network in tests" }),
     readFile: async () => undefined,
     env: {},
     ...overrides,
