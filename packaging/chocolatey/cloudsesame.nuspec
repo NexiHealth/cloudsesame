@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Version is passed at pack time: choco pack --version <x.y.z> -->
+<!-- The real version is passed at pack time (see the chocolatey job in .github/workflows/release.yml). XML comments cannot contain two hyphens in a row. -->
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
     <id>cloudsesame</id>
