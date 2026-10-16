@@ -19,7 +19,7 @@ Bun + TypeScript CLI that checks connectivity and gcloud/aws/az logins before de
   - `vault/scene.ts`: the animation as a pure function (time, size) -> ANSI lines
 - `src/shims/`: build-time stubs (aliased in `tsconfig.json` `paths`)
 - `test/`: `bun test`. `helpers.ts`: `fakeExec`, `deps()`, `ScriptedUi`
-- `scripts/`: `build.ts` (npm: bundle + `dist/schema.json` + `dist/index.d.ts`), `build-binaries.ts`, `preview-vault.tsx`
+- `scripts/`: `build.ts` (npm: bundle + `dist/schema.json` + `dist/index.d.ts`), `build-binaries.ts`, `preview-vault.tsx`, `render-banner.ts` (README banner from the animation)
 - `docs/`: VitePress site (GitHub Pages)
 - `skills/cloudsesame/SKILL.md`: Agent Skill for projects that use cloudsesame. Layout follows the `skills` CLI (`bunx skills add NexiHealth/cloudsesame`); also shipped in the npm package. `init` offers to install it (`SKILL_SOURCE` in `src/core/init.ts`)
 - `.goreleaser.yaml`, `packaging/chocolatey/`, `.github/workflows/`: distribution and CI
@@ -50,7 +50,7 @@ bun run docs:dev
 - Don't remove the `react-devtools-core` alias in `tsconfig.json`; builds fail without it.
 - Exit codes live in `src/core/exit.ts`; keep `--help` and `docs/guide/commands.md` in sync.
 - Tests: engine via `runFlow` + `ScriptedUi` + `fakeExec`; providers via `fakeExec`; Ink components via `ink-testing-library`; e2e via `run([...])` with fake CLIs on PATH.
-- Update `docs/guide/` and `skills/cloudsesame/SKILL.md` when commands, flags, config or exit codes change.
+- Update `docs/guide/`, `skills/cloudsesame/SKILL.md` and `README.md` when commands, flags, config or exit codes change.
 
 ## Releases
 
