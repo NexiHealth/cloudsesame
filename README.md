@@ -46,10 +46,13 @@ cloudsesame checks everything in a few seconds before you start:
 | --- | --- |
 | **npm / Bun** | `bunx cloudsesame` · `npx cloudsesame` · `npm i -g cloudsesame` |
 | **Homebrew** (macOS, Linux) | `brew install NexiHealth/tap/cloudsesame` |
-| **winget** (Windows) | `winget install NexiHealth.cloudsesame` |
 | **Scoop** (Windows) | `scoop bucket add NexiHealth https://github.com/NexiHealth/scoop-bucket`<br>`scoop install cloudsesame` |
 | **Chocolatey** (Windows) | `choco install cloudsesame` |
 | **Binary** | Download from the [latest release](https://github.com/NexiHealth/cloudsesame/releases/latest) and put it on your `PATH` |
+
+<!-- winget is disabled for now (skip_upload in .goreleaser.yaml). Add back once published:
+| **winget** (Windows) | `winget install NexiHealth.cloudsesame` |
+-->
 
 The npm package runs on Node ≥ 18 or Bun. The interactive UI needs Node ≥ 22; older versions get plain output.
 

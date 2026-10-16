@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  # Binaries -> GitHub Release, Homebrew tap, Scoop bucket, winget PR.
+  # Binaries -> GitHub Release, Homebrew tap, Scoop bucket (winget PR disabled in .goreleaser.yaml).
   goreleaser:
     runs-on: ubuntu-latest
     steps:

@@ -27,7 +27,7 @@ When you change commands, flags, config or exit codes, update `docs/guide/`, `sk
 | GitHub Releases      | Standalone binaries (`bun build --compile`) for linux/macOS/windows   | GoReleaser              |
 | Homebrew             | Cask in `NexiHealth/homebrew-tap`                                     | GoReleaser              |
 | Scoop                | Manifest in `NexiHealth/scoop-bucket`                                 | GoReleaser              |
-| winget               | PR to `microsoft/winget-pkgs` from the `NexiHealth/winget-pkgs` fork  | GoReleaser              |
+| winget (disabled)    | PR to `microsoft/winget-pkgs` from the `NexiHealth/winget-pkgs` fork; off until set up (see `.goreleaser.yaml`) | GoReleaser |
 | Chocolatey           | `packaging/chocolatey`, packed on a Windows runner                    | `release.yml` → `chocolatey` |
 
 ## Releasing
@@ -36,14 +36,14 @@ When you change commands, flags, config or exit codes, update `docs/guide/`, `sk
 git tag v0.1.0 && git push origin v0.1.0
 ```
 
-`release.yml` runs GoReleaser (binaries, GitHub Release, Homebrew, Scoop, winget), then publishes to npm (the version comes from the tag), then Chocolatey. `package.json` stays at `0.0.0` in the repo.
+`release.yml` runs GoReleaser (binaries, GitHub Release, Homebrew, Scoop; winget is disabled for now), then publishes to npm (the version comes from the tag), then Chocolatey. `package.json` stays at `0.0.0` in the repo.
 
 ### One-time setup
 
-1. Create the repos `NexiHealth/homebrew-tap` and `NexiHealth/scoop-bucket`, and fork `microsoft/winget-pkgs` to `NexiHealth/winget-pkgs`.
+1. Create the public repos `NexiHealth/homebrew-tap` and `NexiHealth/scoop-bucket`, each with an initial commit. (winget, later: fork `microsoft/winget-pkgs` to `NexiHealth/winget-pkgs`.)
 2. Add these to the GitHub repo settings:
-   - Secret `PACKAGES_GITHUB_TOKEN`: a PAT with `contents: write` on the tap, the bucket and the winget fork (plus `pull_requests: write` on the fork).
+   - Secret `PACKAGES_GITHUB_TOKEN`: a fine-grained token with *Contents: Read and write* on the tap and the bucket (and on the winget fork, plus *Pull requests: Read and write*, once winget is enabled).
    - Secret `NPM_TOKEN` for the first npm publish. After that, set up [trusted publishing](https://docs.npmjs.com/trusted-publishers) for `release.yml` and delete the token.
    - Secret `CHOCOLATEY_API_KEY` from your chocolatey.org account. The Chocolatey job is skipped while it's unset.
-   - Variable `WINGET_ENABLED=true` once the winget fork exists.
+   - Variable `WINGET_ENABLED=true`, once winget is re-enabled in `.goreleaser.yaml`.
 3. Enable GitHub Pages with source **GitHub Actions** for the docs.

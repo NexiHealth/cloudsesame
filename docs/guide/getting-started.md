@@ -16,7 +16,7 @@ With no config, it checks every cloud CLI you have installed with default settin
 - **Skip** carries on without that provider.
 - **Stop** exits with code 5.
 
-See [Installation](./installation) for Homebrew, winget, Scoop, Chocolatey and standalone binaries.
+See [Installation](./installation) for Homebrew, Scoop, Chocolatey and standalone binaries.
 
 ## 2. Add a config
 

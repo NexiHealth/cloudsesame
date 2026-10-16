@@ -16,9 +16,11 @@ npm install -g cloudsesame
 brew install NexiHealth/tap/cloudsesame
 ```
 
+<!-- winget is disabled for now (skip_upload in .goreleaser.yaml). Restore this tab once NexiHealth.cloudsesame is in microsoft/winget-pkgs:
 ```sh [winget]
 winget install NexiHealth.cloudsesame
 ```
+-->
 
 ```sh [Scoop]
 scoop bucket add NexiHealth https://github.com/NexiHealth/scoop-bucket
