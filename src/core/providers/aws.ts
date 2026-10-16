@@ -19,7 +19,8 @@ export const aws: Provider<AwsTarget> = {
     }
 
     const message = firstLine(identity.stderr);
-    if (/could not be found/i.test(message)) return [{ provider: "aws", label, state: "error", message }];
+    // The profile doesn't exist yet: offer to create it (`aws configure sso` signs in at the end).
+    if (/could not be found/i.test(message)) return [{ provider: "aws", label, state: "error", message, fix: ["aws", "configure", "sso", "--profile", label] }];
 
     // Pick the login flow the profile is configured for.
     const [ssoSession, ssoStartUrl, loginSession] = await Promise.all(

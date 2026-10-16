@@ -197,6 +197,26 @@ describe("aws", () => {
     expect(s).toMatchObject({ fix: ["aws", "login"] });
   });
 
+  test("unknown profile offers to create it with aws configure sso", async () => {
+    const { exec, calls } = fakeExec({ "aws sts get-caller-identity": { code: 255, stderr: "\nThe config profile (dev) could not be found\n" } });
+    const [s] = await aws.check({ profile: "dev" }, ctx(exec));
+    expect(s).toMatchObject({ state: "error", message: "The config profile (dev) could not be found", fix: ["aws", "configure", "sso", "--profile", "dev"] });
+    expect(calls).toHaveLength(1);
+  });
+
+  test("unknown AWS_PROFILE offers to create that profile", async () => {
+    const previous = process.env.AWS_PROFILE;
+    process.env.AWS_PROFILE = "from-env";
+    try {
+      const { exec } = fakeExec({ "aws sts get-caller-identity": { code: 255, stderr: "The config profile (from-env) could not be found" } });
+      const [s] = await aws.check({}, ctx(exec));
+      expect(s).toMatchObject({ label: "from-env", fix: ["aws", "configure", "sso", "--profile", "from-env"] });
+    } finally {
+      if (previous === undefined) delete process.env.AWS_PROFILE;
+      else process.env.AWS_PROFILE = previous;
+    }
+  });
+
   test("static credentials have no login fix", async () => {
     const { exec } = fakeExec(expired);
     const [s] = await aws.check({ profile: "keys" }, ctx(exec));
