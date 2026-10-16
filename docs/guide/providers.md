@@ -11,7 +11,7 @@ Every check ends in one of these states:
 | `mismatch` | <span class="cs-sym warn">!</span> | Logged in, but to the wrong account, project, tenant or subscription. |
 | `denied` | <span class="cs-sym err">✖&#xFE0E;</span> | Logged in, but missing [permissions](#permissions) you asked for. Logging in again doesn't help, so there's no fix to run: ask an admin for the role. |
 | `missing` | <span class="cs-sym err">✖&#xFE0E;</span> | The CLI isn't on your `PATH`. The message links to its install page. |
-| `error` | <span class="cs-sym err">✖&#xFE0E;</span> | Something else went wrong, like an unknown AWS profile. |
+| `error` | <span class="cs-sym err">✖&#xFE0E;</span> | Something else went wrong, like an unknown AWS profile (fixed with `aws configure sso`). |
 
 Anything other than `ok` makes the target not ready (exit code 4 if it isn't resolved). When there's a command that fixes it, cloudsesame shows it (`→ …`) and offers to run it. After running a fix, it checks that target again, so a target with several problems is fixed one step at a time.
 
@@ -47,7 +47,7 @@ One check per profile, labeled with the profile name (`profile`, else `AWS_PROFI
 
 1. `aws sts get-caller-identity --profile <profile>` proves the credentials work. On success, the identity shown is the caller ARN.
 2. With `accountId`, the account must match. A mismatch has no automatic fix: switch to a profile for the right account.
-3. If the profile doesn't exist, that's an `error` with no fix.
+3. If the profile doesn't exist, that's an `error`, fixed by creating it: `aws configure sso --profile <profile>` asks for your IAM Identity Center details, then signs you in.
 4. Otherwise it's not logged in, and cloudsesame picks the login the profile is configured for:
 
 | Profile has | Fix |

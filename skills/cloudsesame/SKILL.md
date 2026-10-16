@@ -74,7 +74,7 @@ Never pass `-y`/`--yes` or `--unauthenticated login`: they start interactive log
 ### Choosing settings
 
 - **gcloud `credentials`**: `"adc"` for code that uses Google SDKs or OpenTofu/Terraform (Application Default Credentials), `"user"` for scripts that shell out to `gcloud`, `"both"` (default) when unsure. Add `project`/`account` to catch logins to the wrong one. Add `permissions` (with `project`) for the IAM permissions the code needs, e.g. `aiplatform.endpoints.predict` for Vertex AI. Add `quotaProject` (needs ADC) when Google APIs called with user ADC must bill quota to a specific project (`gcloud auth application-default set-quota-project`).
-- **aws `profile`**: the profile from `~/.aws/config` the project uses (`aws configure list-profiles`). cloudsesame picks the right login itself (`aws sso login` for SSO profiles, `aws login` for console-login profiles). Add `accountId` to catch the wrong account.
+- **aws `profile`**: the profile from `~/.aws/config` the project uses (`aws configure list-profiles`). cloudsesame picks the right login itself (`aws sso login` for SSO profiles, `aws login` for console-login profiles), and offers `aws configure sso --profile <name>` when the profile doesn't exist yet. Add `accountId` to catch the wrong account.
 - **az**: `tenant` and/or `subscription` (ID or name) to pin them.
 - **`groups`**: name the set of providers a workflow needs, so scripts can run `cloudsesame <group>`.
 - **`noTerminal: "skip"`**: only if the project prefers CI and agents to continue silently instead of failing. Default is `"fail"`, which is usually right.
