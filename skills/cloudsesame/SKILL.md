@@ -73,7 +73,7 @@ Never pass `-y`/`--yes` or `--unauthenticated login`: they start interactive log
 
 ### Choosing settings
 
-- **gcloud `credentials`**: `"adc"` for code that uses Google SDKs or OpenTofu/Terraform (Application Default Credentials), `"user"` for scripts that shell out to `gcloud`, `"both"` (default) when unsure. Add `project`/`account` to catch logins to the wrong one.
+- **gcloud `credentials`**: `"adc"` for code that uses Google SDKs or OpenTofu/Terraform (Application Default Credentials), `"user"` for scripts that shell out to `gcloud`, `"both"` (default) when unsure. Add `project`/`account` to catch logins to the wrong one. Add `quotaProject` (needs ADC) when Google APIs called with user ADC must bill quota to a specific project (`gcloud auth application-default set-quota-project`).
 - **aws `profile`**: the profile from `~/.aws/config` the project uses (`aws configure list-profiles`). cloudsesame picks the right login itself (`aws sso login` for SSO profiles, `aws login` for console-login profiles). Add `accountId` to catch the wrong account.
 - **az**: `tenant` and/or `subscription` (ID or name) to pin them.
 - **`groups`**: name the set of providers a workflow needs, so scripts can run `cloudsesame <group>`.
@@ -86,7 +86,7 @@ File: nearest `sesame.config.{ts,mts,js,mjs,json}` from the current directory up
 
 | Key | Default | Values |
 | --- | --- | --- |
-| `gcloud` | | `{ credentials?: "user" \| "adc" \| "both", account?, project? }` or a list |
+| `gcloud` | | `{ credentials?: "user" \| "adc" \| "both", account?, project?, quotaProject? }` or a list |
 | `aws` | | `{ profile?, accountId? }` or a list |
 | `az` | | `{ tenant?, subscription? }` or a list |
 | `groups` | | `{ [name]: ("gcloud" \| "aws" \| "az")[] }` |

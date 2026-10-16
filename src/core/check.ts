@@ -10,7 +10,7 @@ export async function checkTarget(t: Target, deps: Deps, timeout: number): Promi
     return [{ provider: t.provider, label: "cli", state: "missing", message: `${provider.cli} CLI not found. Install: ${provider.install}` }];
   }
   try {
-    return await provider.check(t.target, { exec: deps.exec, timeout });
+    return await provider.check(t.target, { exec: deps.exec, readFile: deps.readFile, env: deps.env, timeout });
   } catch (error) {
     return [{ provider: t.provider, label: provider.cli, state: "error", message: (error as Error).message }];
   }

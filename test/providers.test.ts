@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { aws } from "../src/core/providers/aws";
 import { az } from "../src/core/providers/az";
-import { gcloud } from "../src/core/providers/gcloud";
+import { adcPath, gcloud } from "../src/core/providers/gcloud";
 import { ctx, fakeExec } from "./helpers";
 
 describe("gcloud", () => {
@@ -39,6 +39,55 @@ describe("gcloud", () => {
       { label: "user", state: "mismatch", fix: ["gcloud", "auth", "login", "other@x.com"] },
       { label: "project", state: "mismatch", identity: "proj-a", fix: ["gcloud", "config", "set", "project", "proj-b"] },
     ]);
+  });
+
+  describe("quotaProject", () => {
+    const adcFile = "/gc/application_default_credentials.json";
+    const adc = (fields: object) => ({ [adcFile]: JSON.stringify({ type: "authorized_user", ...fields }) });
+
+    test("ok when it matches", async () => {
+      const { exec } = fakeExec(loggedIn);
+      const statuses = await gcloud.check({ credentials: "adc", quotaProject: "billing" }, ctx(exec, adc({ quota_project_id: "billing" })));
+      expect(statuses).toEqual([
+        { provider: "gcloud", label: "adc", state: "ok" },
+        { provider: "gcloud", label: "quota project", state: "ok", identity: "billing" },
+      ]);
+    });
+
+    test("mismatch or unset suggests set-quota-project", async () => {
+      const { exec } = fakeExec(loggedIn);
+      const fix = ["gcloud", "auth", "application-default", "set-quota-project", "billing"];
+      expect(await gcloud.check({ credentials: "adc", quotaProject: "billing" }, ctx(exec, adc({ quota_project_id: "other" })))).toMatchObject([
+        { label: "adc" },
+        { label: "quota project", state: "mismatch", identity: "other", fix },
+      ]);
+      expect(await gcloud.check({ credentials: "adc", quotaProject: "billing" }, ctx(exec, adc({})))).toMatchObject([
+        { label: "adc" },
+        { label: "quota project", state: "mismatch", identity: undefined, fix },
+      ]);
+    });
+
+    test("not checked until adc works, nor for service accounts", async () => {
+      const { exec } = fakeExec({ ...loggedIn, "gcloud auth application-default print-access-token": { code: 1, stderr: "no creds" } });
+      expect(await gcloud.check({ credentials: "adc", quotaProject: "billing" }, ctx(exec))).toMatchObject([{ label: "adc", state: "unauthenticated" }]);
+      const ok = fakeExec(loggedIn).exec;
+      const sa = { [adcFile]: JSON.stringify({ type: "service_account" }) };
+      expect(await gcloud.check({ credentials: "adc", quotaProject: "billing" }, ctx(ok, sa))).toEqual([{ provider: "gcloud", label: "adc", state: "ok" }]);
+    });
+
+    test("unreadable credentials file is an error", async () => {
+      const { exec } = fakeExec(loggedIn);
+      expect(await gcloud.check({ credentials: "adc", quotaProject: "billing" }, ctx(exec))).toMatchObject([
+        { label: "adc" },
+        { label: "quota project", state: "error", message: `can't read ${adcFile}` },
+      ]);
+    });
+
+    test("adcPath", () => {
+      expect(adcPath({ GOOGLE_APPLICATION_CREDENTIALS: "/key.json", CLOUDSDK_CONFIG: "/gc" })).toBe("/key.json");
+      expect(adcPath({ CLOUDSDK_CONFIG: "/gc" })).toBe(adcFile);
+      expect(adcPath({}, "linux", "/home/me")).toBe("/home/me/.config/gcloud/application_default_credentials.json");
+    });
   });
 });
 
