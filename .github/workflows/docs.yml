@@ -20,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history for the pages' "Updated" dates
       - uses: oven-sh/setup-bun@v2
       - uses: actions/configure-pages@v5
       - run: bun install --frozen-lockfile

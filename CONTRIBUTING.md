@@ -8,7 +8,7 @@ cloudsesame is a Bun + TypeScript CLI with an [Ink](https://github.com/vadimdeme
 bun install
 bun run dev -- check        # run from source
 bun run preview:vault       # play the open-sesame animation
-bun run render:banner       # re-render .github/assets/banner.png from the animation
+bun run render:banner       # re-render the README banner and docs/public images from the animation
 bun test
 bun run typecheck
 bun run build               # npm bundle, config schema and types -> dist/

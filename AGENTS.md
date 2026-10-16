@@ -19,8 +19,8 @@ Bun + TypeScript CLI that checks connectivity and gcloud/aws/az logins before de
   - `vault/scene.ts`: the animation as a pure function (time, size) -> ANSI lines
 - `src/shims/`: build-time stubs (aliased in `tsconfig.json` `paths`)
 - `test/`: `bun test`. `helpers.ts`: `fakeExec`, `deps()`, `ScriptedUi`
-- `scripts/`: `build.ts` (npm: bundle + `dist/schema.json` + `dist/index.d.ts`), `build-binaries.ts`, `preview-vault.tsx`, `render-banner.ts` (README banner from the animation)
-- `docs/`: VitePress site (GitHub Pages)
+- `scripts/`: `build.ts` (npm: bundle + `dist/schema.json` + `dist/index.d.ts`), `build-binaries.ts`, `preview-vault.tsx`, `render-banner.ts` (README banner and docs images in `docs/public/` from the animation)
+- `docs/`: VitePress site (GitHub Pages). Custom theme in `docs/.vitepress/theme/` (`custom.css`, `components/`)
 - `skills/cloudsesame/SKILL.md`: Agent Skill for projects that use cloudsesame. Layout follows the `skills` CLI (`bunx skills add NexiHealth/cloudsesame`); also shipped in the npm package. `init` offers to install it (`SKILL_SOURCE` in `src/core/init.ts`)
 - `.goreleaser.yaml`, `packaging/chocolatey/`, `.github/workflows/`: distribution and CI
 

@@ -1,0 +1,602 @@
+/*
+ * cloudsesame docs theme. Colors come from the open-sesame animation (src/ui/vault/scene.ts):
+ * gold #ffc454 and glow #ffecaa from the vault, brick and mortar from the wall, brushed steel from the door.
+ */
+
+:root {
+  --cs-gold: #ffc454;
+  --cs-glow: #ffecaa;
+  --cs-brick: #9e4732;
+  --cs-mortar: #3a3430;
+  --cs-steel: #8a8c93;
+
+  /* Brand: dark amber for text on light backgrounds, gold for fills. */
+  --vp-c-brand-1: #95560a;
+  --vp-c-brand-2: #ad6608;
+  --vp-c-brand-3: #ffc454;
+  --vp-c-brand-soft: rgba(255, 176, 48, 0.16);
+
+  /* Warm off-white neutrals. */
+  --vp-c-bg-alt: #f8f6f3;
+  --vp-c-bg-soft: #f4f1ed;
+  --vp-c-divider: #e8e3dc;
+  --vp-c-gutter: #ece7e0;
+
+  /* Warnings in brick, so they don't blur into the gold brand. */
+  --vp-c-warning-1: #a3442b;
+  --vp-c-warning-2: #b9553a;
+  --vp-c-warning-3: #c4664a;
+  --vp-c-warning-soft: rgba(196, 82, 52, 0.12);
+
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-text: #23180b;
+  --vp-button-brand-bg: #ffc454;
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-brand-hover-text: #23180b;
+  --vp-button-brand-hover-bg: #ffb42e;
+  --vp-button-brand-active-border: transparent;
+  --vp-button-brand-active-text: #23180b;
+  --vp-button-brand-active-bg: #f2a619;
+
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(120deg, #c27a06 10%, #9e4732 90%);
+  --vp-home-hero-image-background-image: radial-gradient(circle at 50% 50%, rgba(255, 196, 84, 0.9) 0%, rgba(255, 196, 84, 0.35) 45%, transparent 70%);
+  --vp-home-hero-image-filter: blur(56px);
+
+  --cs-brick-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='88' height='40'%3E%3Cpath d='M0 .5H88M0 20.5H88M.5 0V20M44.5 0V20M22.5 20V40M66.5 20V40' stroke='%239e4732' stroke-opacity='.16' fill='none'/%3E%3C/svg%3E");
+  --cs-card-bg: #ffffff;
+  --cs-card-border: #e8e3dc;
+}
+
+.dark {
+  /* Brushed-steel darks. */
+  --vp-c-bg: #121316;
+  --vp-c-bg-alt: #0c0d0f;
+  --vp-c-bg-elv: #1a1b1f;
+  --vp-c-bg-soft: #1a1b1f;
+  --vp-c-divider: #2a2c31;
+  --vp-c-gutter: #050506;
+
+  --vp-c-brand-1: #ffc454;
+  --vp-c-brand-2: #ffd47a;
+  --vp-c-brand-3: #ffc454;
+  --vp-c-brand-soft: rgba(255, 196, 84, 0.14);
+
+  --vp-c-warning-1: #ec8f72;
+  --vp-c-warning-2: #e07a5c;
+  --vp-c-warning-3: #c4664a;
+  --vp-c-warning-soft: rgba(208, 102, 74, 0.16);
+
+  --vp-button-brand-hover-bg: #ffd47a;
+  --vp-button-brand-active-bg: #ffe2a0;
+
+  --vp-home-hero-name-background: linear-gradient(120deg, #ffecaa 0%, #ffc454 45%, #e0894a 100%);
+  --vp-home-hero-image-background-image: radial-gradient(circle at 50% 50%, rgba(255, 196, 84, 0.55) 0%, rgba(158, 71, 50, 0.35) 45%, transparent 70%);
+
+  --cs-brick-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='88' height='40'%3E%3Cpath d='M0 .5H88M0 20.5H88M.5 0V20M44.5 0V20M22.5 20V40M66.5 20V40' stroke='%23ffffff' stroke-opacity='.07' fill='none'/%3E%3C/svg%3E");
+  --cs-card-bg: #16171a;
+  --cs-card-border: #26282d;
+}
+
+::selection {
+  background: rgba(255, 196, 84, 0.35);
+}
+
+/* Pixel art stays pixel art. */
+.VPNavBarTitle .logo,
+.VPHero .image-src {
+  image-rendering: pixelated;
+}
+
+.VPNavBarTitle .title {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* ---------- Home: hero ---------- */
+
+.VPHome {
+  position: relative;
+  isolation: isolate;
+}
+
+/* A faint brick wall behind the hero, fading out like the scene's spotlight. */
+.VPHome::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 820px;
+  z-index: -1;
+  background-image: var(--cs-brick-pattern);
+  -webkit-mask-image: radial-gradient(ellipse 70% 75% at 72% 32%, #000 0%, transparent 72%);
+  mask-image: radial-gradient(ellipse 70% 75% at 72% 32%, #000 0%, transparent 72%);
+  pointer-events: none;
+}
+
+.VPHero .name {
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+
+.VPHero .text {
+  letter-spacing: -0.025em;
+}
+
+.VPHero .tagline {
+  max-width: 520px;
+}
+
+@media (min-width: 640px) {
+  .VPHero .image-container {
+    width: 360px;
+    height: 360px;
+  }
+  .VPHero .image-src {
+    max-width: 300px;
+    max-height: 300px;
+  }
+}
+
+@media (min-width: 960px) {
+  .VPHero .image-container {
+    width: 100%;
+    height: 100%;
+  }
+  .VPHero .image-src {
+    max-width: 420px;
+    max-height: 420px;
+  }
+}
+
+.cs-hero-command {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  padding: 9px 14px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 10px;
+  background: var(--vp-c-bg-soft);
+  font-family: var(--vp-font-family-mono);
+  font-size: 14px;
+  color: var(--vp-c-text-1);
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.cs-hero-command:hover {
+  border-color: var(--vp-c-brand-3);
+}
+
+.cs-hero-command .prompt {
+  color: var(--vp-c-brand-1);
+  font-weight: 700;
+}
+
+.cs-hero-command code {
+  font-family: inherit;
+}
+
+.cs-hero-command .state {
+  margin-left: 6px;
+  padding-left: 12px;
+  border-left: 1px solid var(--vp-c-divider);
+  font-family: var(--vp-font-family-base);
+  font-size: 12px;
+  color: var(--vp-c-text-3);
+  min-width: 46px;
+  text-align: left;
+}
+
+@media (max-width: 959px) {
+  .VPHero.has-image .cs-hero-command {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .VPHero.has-image .actions + .cs-hero-command,
+  .VPHero.has-image .cs-hero-command {
+    display: flex;
+    width: fit-content;
+  }
+}
+
+/* ---------- Home: features ---------- */
+
+.VPFeature {
+  background: var(--cs-card-bg) !important;
+  border: 1px solid var(--cs-card-border) !important;
+  transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s;
+}
+
+.VPFeature.link:hover {
+  border-color: var(--vp-c-brand-3) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px -18px rgba(255, 170, 40, 0.6);
+}
+
+.VPFeature .icon {
+  background: var(--vp-c-brand-soft) !important;
+  color: var(--vp-c-brand-1);
+  border-radius: 10px !important;
+}
+
+.VPFeature .icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.VPFeature .link-text-value {
+  color: var(--vp-c-brand-1) !important;
+}
+
+/* ---------- Home: sections ---------- */
+
+.VPHome .vp-doc .cs-section {
+  margin: 96px auto 0;
+  max-width: 1152px;
+}
+
+.vp-doc .cs-eyebrow {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--vp-c-brand-1);
+}
+
+.VPHome .vp-doc .cs-section h2 {
+  margin: 0 0 12px;
+  padding: 0;
+  border: 0;
+  font-size: 30px;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+.VPHome .vp-doc .cs-lead {
+  margin: 0 0 24px;
+  max-width: 640px;
+  font-size: 17px;
+  color: var(--vp-c-text-2);
+}
+
+.cs-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+
+@media (min-width: 960px) {
+  .cs-split {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 56px;
+  }
+  .cs-split.even {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.cs-split > div {
+  min-width: 0;
+}
+
+.cs-split > div > :first-child {
+  margin-top: 0;
+}
+
+.vp-doc .cs-checklist {
+  list-style: none;
+  padding: 0;
+}
+
+.vp-doc .cs-checklist li {
+  position: relative;
+  padding-left: 28px;
+}
+
+.vp-doc .cs-checklist li::before {
+  content: "✦";
+  position: absolute;
+  left: 2px;
+  top: 0;
+  color: var(--vp-c-brand-1);
+}
+
+.cs-exit-codes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+  margin: 20px 0 0;
+}
+
+.cs-exit-codes div {
+  padding: 12px 14px;
+  border: 1px solid var(--cs-card-border);
+  border-radius: 10px;
+  background: var(--cs-card-bg);
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--vp-c-text-2);
+}
+
+.cs-exit-codes b {
+  display: block;
+  font-family: var(--vp-font-family-mono);
+  font-size: 20px;
+  color: var(--vp-c-text-1);
+}
+
+.cs-exit-codes .hot b {
+  color: var(--vp-c-brand-1);
+}
+
+/* Call to action: a dark vault-lit band in both themes. */
+.cs-cta {
+  position: relative;
+  overflow: hidden;
+  margin: 112px auto 0;
+  max-width: 1152px;
+  padding: 48px 32px;
+  border-radius: 20px;
+  background:
+    radial-gradient(ellipse 60% 120% at 50% 120%, rgba(255, 196, 84, 0.45), transparent 70%),
+    linear-gradient(180deg, #1b1c20, #111214);
+  border: 1px solid #2a2c31;
+  text-align: center;
+  color: #e9e6e1;
+}
+
+.cs-cta::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='88' height='40'%3E%3Cpath d='M0 .5H88M0 20.5H88M.5 0V20M44.5 0V20M22.5 20V40M66.5 20V40' stroke='%23ffffff' stroke-opacity='.06' fill='none'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+.vp-doc .cs-cta h2 {
+  position: relative;
+  margin: 0 0 10px !important;
+  padding-top: 0;
+  border-top: 0;
+  color: #fff;
+}
+
+.vp-doc .cs-cta p {
+  position: relative;
+  margin: 0 auto 24px;
+  max-width: 560px;
+  color: #b9b4ac;
+}
+
+.cs-cta .cs-actions {
+  position: relative;
+  justify-content: center;
+}
+
+.cs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.vp-doc .cs-actions a {
+  display: inline-block;
+  padding: 0 20px;
+  line-height: 40px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.vp-doc .cs-actions a.brand {
+  background: var(--cs-gold);
+  color: #23180b;
+}
+
+.vp-doc .cs-actions a.brand:hover {
+  background: #ffd47a;
+}
+
+.vp-doc .cs-actions a.alt {
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #e9e6e1;
+}
+
+.vp-doc .cs-actions a.alt:hover {
+  border-color: var(--cs-gold);
+}
+
+/* ---------- Terminal ---------- */
+
+.cs-terminal {
+  --t-bg: #0f1012;
+  --t-fg: #e6e3de;
+  --t-dim: #8b8780;
+  --t-ok: #7fcf8a;
+  --t-err: #f07a62;
+  --t-ask: #7cc7d4;
+  --t-gold: #ffc454;
+  margin: 16px 0;
+  border: 1px solid #2a2c31;
+  border-radius: 14px;
+  background: var(--t-bg);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.02) inset,
+    0 24px 60px -30px rgba(0, 0, 0, 0.55),
+    0 30px 80px -50px rgba(255, 170, 40, 0.5);
+  overflow: hidden;
+}
+
+.cs-terminal-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #222428;
+  background: #16171a;
+}
+
+.cs-terminal-bar .dots {
+  display: flex;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.cs-terminal-bar .dots i {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #3a3c42;
+}
+
+.cs-terminal-bar .dots i:first-child {
+  background: var(--cs-brick);
+}
+
+.cs-terminal-bar .dots i:last-child {
+  background: var(--cs-gold);
+}
+
+.cs-terminal .tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.cs-terminal .tabs button {
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: #9a968f;
+  transition: color 0.2s, background-color 0.2s;
+}
+
+.cs-terminal .tabs button:hover {
+  color: #e6e3de;
+}
+
+.cs-terminal .tabs button.active {
+  color: #23180b;
+  background: var(--cs-gold);
+}
+
+.vp-doc .cs-terminal-body,
+.cs-terminal-body {
+  margin: 0;
+  padding: 18px 20px 20px;
+  min-height: 300px;
+  overflow-x: auto;
+  background: transparent;
+  font-family: var(--vp-font-family-mono);
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--t-fg);
+}
+
+.cs-terminal-body code {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: none;
+  padding: 0;
+}
+
+.cs-terminal-body .line {
+  animation: cs-line-in 0.28s both;
+  animation-delay: calc(var(--i) * 55ms);
+}
+
+.cs-terminal-body .dim { color: var(--t-dim); }
+.cs-terminal-body .cmd { color: var(--t-fg); font-weight: 700; }
+.cs-terminal-body .b { font-weight: 700; }
+.cs-terminal-body .ok { color: var(--t-ok); }
+.cs-terminal-body .err { color: var(--t-err); }
+.cs-terminal-body .ask { color: var(--t-ask); }
+.cs-terminal-body .gold { color: var(--t-gold); font-weight: 700; text-shadow: 0 0 12px rgba(255, 196, 84, 0.55); }
+
+@keyframes cs-line-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cs-terminal-body .line { animation: none; }
+  .VPFeature.link:hover { transform: none; }
+}
+
+/* ---------- Docs pages ---------- */
+
+.vp-doc h1 {
+  letter-spacing: -0.03em;
+}
+
+.vp-doc h2 {
+  letter-spacing: -0.02em;
+}
+
+.vp-doc table code {
+  white-space: nowrap;
+}
+
+/* Recipe and provider cards on guide pages. */
+.cs-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.vp-doc .cs-cards a {
+  display: block;
+  padding: 16px 18px;
+  border: 1px solid var(--cs-card-border);
+  border-radius: 12px;
+  background: var(--cs-card-bg);
+  text-decoration: none;
+  color: var(--vp-c-text-1);
+  transition: border-color 0.2s;
+}
+
+.vp-doc .cs-cards a:hover {
+  border-color: var(--vp-c-brand-3);
+}
+
+.vp-doc .cs-cards a strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.vp-doc .cs-cards a span {
+  display: block;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--vp-c-text-2);
+}
+
+/* Status icons, as the CLI prints them. */
+.cs-sym {
+  font-family: var(--vp-font-family-mono);
+  font-weight: 700;
+}
+.cs-sym.ok { color: var(--vp-c-green-1); }
+.cs-sym.err { color: var(--vp-c-red-1); }
+.cs-sym.warn { color: var(--vp-c-warning-1); }
+
+@media (max-width: 639px) {
+  .cs-terminal-body,
+  .vp-doc .cs-terminal-body {
+    font-size: 12px;
+    padding: 14px 16px 16px;
+  }
+  .cs-cta {
+    padding: 40px 20px;
+  }
+}
