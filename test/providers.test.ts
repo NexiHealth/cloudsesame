@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { join } from "node:path";
 import { aws } from "../src/core/providers/aws";
 import { az } from "../src/core/providers/az";
 import { adcPath, gcloud } from "../src/core/providers/gcloud";
@@ -42,7 +43,7 @@ describe("gcloud", () => {
   });
 
   describe("quotaProject", () => {
-    const adcFile = "/gc/application_default_credentials.json";
+    const adcFile = join("/gc", "application_default_credentials.json");
     const adc = (fields: object) => ({ [adcFile]: JSON.stringify({ type: "authorized_user", ...fields }) });
 
     test("ok when it matches", async () => {
@@ -86,7 +87,7 @@ describe("gcloud", () => {
     test("adcPath", () => {
       expect(adcPath({ GOOGLE_APPLICATION_CREDENTIALS: "/key.json", CLOUDSDK_CONFIG: "/gc" })).toBe("/key.json");
       expect(adcPath({ CLOUDSDK_CONFIG: "/gc" })).toBe(adcFile);
-      expect(adcPath({}, "linux", "/home/me")).toBe("/home/me/.config/gcloud/application_default_credentials.json");
+      expect(adcPath({}, "linux", "/home/me")).toBe(join("/home/me", ".config", "gcloud", "application_default_credentials.json"));
     });
   });
 });
