@@ -43,7 +43,7 @@ git tag v0.1.0 && git push origin v0.1.0
 1. Create the public repos `NexiHealth/homebrew-tap` and `NexiHealth/scoop-bucket`, each with an initial commit. (winget, later: fork `microsoft/winget-pkgs` to `NexiHealth/winget-pkgs`.)
 2. Add these to the GitHub repo settings:
    - Secret `PACKAGES_GITHUB_TOKEN`: a fine-grained token with *Contents: Read and write* on the tap and the bucket (and on the winget fork, plus *Pull requests: Read and write*, once winget is enabled).
-   - Secret `NPM_TOKEN` for the first npm publish. After that, set up [trusted publishing](https://docs.npmjs.com/trusted-publishers) for `release.yml` and delete the token.
+   - npm publishes with [trusted publishing](https://docs.npmjs.com/trusted-publishers), no token: on npmjs.com, package **cloudsesame** → Settings → Trusted Publisher → GitHub Actions, organization `NexiHealth`, repository `cloudsesame`, workflow `release.yml`. The package has to exist first, so the very first version is published by hand (`npm publish --access public` after `npm version <x.y.z> --no-git-tag-version`).
    - Secret `CHOCOLATEY_API_KEY` from your chocolatey.org account. The Chocolatey job is skipped while it's unset.
    - Variable `WINGET_ENABLED=true`, once winget is re-enabled in `.goreleaser.yaml`.
 3. Enable GitHub Pages with source **GitHub Actions** for the docs.
