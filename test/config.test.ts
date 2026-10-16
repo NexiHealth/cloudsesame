@@ -40,6 +40,13 @@ describe("config", () => {
     expect(error.message).toContain('"typo"');
   });
 
+  test("quotaProject needs ADC credentials", async () => {
+    const dir = project("quota", { ".git/HEAD": "", "sesame.config.json": '{ "gcloud": { "credentials": "user", "quotaProject": "billing" } }' });
+    const error = await loadConfig({ cwd: dir }).catch((e) => e);
+    expect(error).toBeInstanceOf(ConfigError);
+    expect(error.message).toContain("gcloud[0].quotaProject");
+  });
+
   test("no config is an empty config", async () => {
     expect(await loadConfig({ cwd: project("none", { ".git/HEAD": "" }) })).toEqual({ config: {} });
   });

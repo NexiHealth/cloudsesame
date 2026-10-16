@@ -1,3 +1,4 @@
+import type { Deps } from "../deps";
 import type { Exec } from "../exec";
 import type { ProviderId } from "../config/types";
 
@@ -18,6 +19,8 @@ export interface Status {
 
 export interface CheckContext {
   exec: Exec;
+  readFile: Deps["readFile"];
+  env: Deps["env"];
   timeout: number;
 }
 

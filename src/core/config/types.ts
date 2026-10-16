@@ -20,6 +20,12 @@ export interface GcloudTarget {
   account?: string;
   /** Expected active project ID. */
   project?: string;
+  /**
+   * Expected quota project of user Application Default Credentials: the project billed for API quota when SDKs and
+   * OpenTofu/Terraform call Google APIs as you (`gcloud auth application-default set-quota-project`).
+   * Requires `credentials` `adc` or `both`. Not checked for service account credentials.
+   */
+  quotaProject?: string;
 }
 
 export interface AwsTarget {

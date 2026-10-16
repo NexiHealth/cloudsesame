@@ -5,11 +5,17 @@ import type { AwsTarget, AzTarget, Config, GcloudTarget } from "./types";
 const oneOrMany = <T extends z.ZodType>(schema: T) =>
   z.preprocess((v) => (v === undefined || Array.isArray(v) ? v : [v]), z.array(schema));
 
-const gcloud: z.ZodType<GcloudTarget> = z.strictObject({
-  credentials: z.enum(["user", "adc", "both"]).optional(),
-  account: z.string().optional(),
-  project: z.string().optional(),
-});
+const gcloud: z.ZodType<GcloudTarget> = z
+  .strictObject({
+    credentials: z.enum(["user", "adc", "both"]).optional(),
+    account: z.string().optional(),
+    project: z.string().optional(),
+    quotaProject: z.string().optional(),
+  })
+  .refine((t) => !(t.quotaProject && t.credentials === "user"), {
+    message: 'quotaProject applies to ADC; use credentials "adc" or "both"',
+    path: ["quotaProject"],
+  });
 
 const aws: z.ZodType<AwsTarget> = z.strictObject({
   profile: z.string().optional(),

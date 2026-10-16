@@ -35,7 +35,7 @@ The `import type` is erased at runtime, so cloudsesame doesn't need to be instal
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `gcloud` | | One target or a list. `credentials`: `user` \| `adc` \| `both` (default `both`), `account`, `project` |
+| `gcloud` | | One target or a list. `credentials`: `user` \| `adc` \| `both` (default `both`), `account`, `project`, `quotaProject` (quota project of user ADC, fixed with `gcloud auth application-default set-quota-project`) |
 | `aws` | | One target or a list. `profile` (default `AWS_PROFILE`, then `default`), `accountId` |
 | `az` | | One target or a list. `tenant`, `subscription` (ID or name) |
 | `groups` | | Named sets of providers: `{ "infra": ["gcloud", "aws"] }` → `cloudsesame check infra` |

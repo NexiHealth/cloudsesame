@@ -14,7 +14,12 @@ export function fakeExec(responses: Record<string, Partial<ExecResult>>) {
   return { exec, calls };
 }
 
-export const ctx = (exec: Exec) => ({ exec, timeout: 1000 });
+export const ctx = (exec: Exec, files: Record<string, string> = {}) => ({
+  exec,
+  readFile: async (path: string) => files[path],
+  env: { CLOUDSDK_CONFIG: "/gc" },
+  timeout: 1000,
+});
 
 import type { Deps } from "../src/core/deps";
 import type { Choice, FlowEvent, Ui } from "../src/core/flow/types";
@@ -29,6 +34,8 @@ export function deps(overrides: Partial<Deps> & { online?: boolean } = {}): Deps
     exec: fakeExec({}).exec,
     which: installed("gcloud", "aws", "az"),
     isOnline: async () => overrides.online ?? true,
+    readFile: async () => undefined,
+    env: {},
     ...overrides,
   };
 }

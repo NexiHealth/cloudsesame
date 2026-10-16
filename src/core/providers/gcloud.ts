@@ -1,13 +1,30 @@
+import { homedir } from "node:os";
+import { join } from "node:path";
 import type { GcloudTarget } from "../config/types";
 import { firstLine as rawFirstLine, type Provider, type Status } from "./types";
 
 const firstLine = (stderr: string) => (/reauthentication/i.test(stderr) ? "reauthentication required" : rawFirstLine(stderr));
 
+/** Where SDKs find Application Default Credentials: `GOOGLE_APPLICATION_CREDENTIALS`, else gcloud's config dir. */
+export function adcPath(env: NodeJS.ProcessEnv, platform = process.platform, home = homedir()): string {
+  if (env.GOOGLE_APPLICATION_CREDENTIALS) return env.GOOGLE_APPLICATION_CREDENTIALS;
+  const dir = env.CLOUDSDK_CONFIG ?? (platform === "win32" ? join(env.APPDATA ?? home, "gcloud") : join(home, ".config", "gcloud"));
+  return join(dir, "application_default_credentials.json");
+}
+
+function parseJson(text: string | undefined): Record<string, unknown> | undefined {
+  try {
+    return text ? JSON.parse(text) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export const gcloud: Provider<GcloudTarget> = {
   id: "gcloud",
   cli: "gcloud",
   install: "https://cloud.google.com/sdk/docs/install",
-  async check(target, { exec, timeout }) {
+  async check(target, { exec, readFile, env, timeout }) {
     const credentials = target.credentials ?? "both";
     const wantUser = credentials !== "adc";
     const wantAdc = credentials !== "user";
@@ -39,6 +56,21 @@ export const gcloud: Provider<GcloudTarget> = {
           ? { provider: "gcloud", label: "adc", state: "ok" }
           : { provider: "gcloud", label: "adc", state: "unauthenticated", message: firstLine(adcToken.stderr), fix: ["gcloud", "auth", "application-default", "login"] },
       );
+    }
+
+    // Only meaningful once ADC works; a failed ADC login is fixed first.
+    if (adcToken?.code === 0 && target.quotaProject) {
+      const path = adcPath(env);
+      const adc = parseJson(await readFile(path));
+      const fix = ["gcloud", "auth", "application-default", "set-quota-project", target.quotaProject];
+      const active = typeof adc?.quota_project_id === "string" ? adc.quota_project_id : undefined;
+      if (!adc) {
+        statuses.push({ provider: "gcloud", label: "quota project", state: "error", message: `can't read ${path}` });
+      } else if (adc.type === "authorized_user" && active !== target.quotaProject) {
+        statuses.push({ provider: "gcloud", label: "quota project", state: "mismatch", identity: active, message: `expected quota project ${target.quotaProject}`, fix });
+      } else if (adc.type === "authorized_user") {
+        statuses.push({ provider: "gcloud", label: "quota project", state: "ok", identity: active });
+      }
     }
 
     if (project && target.project) {
