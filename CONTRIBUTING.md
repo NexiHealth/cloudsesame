@@ -38,6 +38,8 @@ git tag v0.1.0 && git push origin v0.1.0
 
 `release.yml` runs GoReleaser (binaries, GitHub Release, Homebrew, Scoop; winget is disabled for now), then publishes to npm (the version comes from the tag), then Chocolatey. `package.json` stays at `0.0.0` in the repo.
 
+Chocolatey moderates every version and refuses new ones while an earlier one is still in review. If moderation asks for changes, fix `packaging/chocolatey/`, merge, then re-push that same version: Actions → Release → Run workflow, with the tag (e.g. `v0.2.1`). Only the Chocolatey job runs.
+
 ### One-time setup
 
 1. Create the public repos `NexiHealth/homebrew-tap` and `NexiHealth/scoop-bucket`, each with an initial commit. (winget, later: fork `microsoft/winget-pkgs` to `NexiHealth/winget-pkgs`.)

@@ -4,16 +4,46 @@
   <metadata>
     <id>cloudsesame</id>
     <version>0.0.0</version>
-    <title>cloudsesame</title>
+    <title>cloudsesame (Cloud Login Checker)</title>
     <authors>Pol Vallverdu</authors>
     <owners>NexiHealth</owners>
-    <projectUrl>https://github.com/NexiHealth/cloudsesame</projectUrl>
+    <projectUrl>https://nexihealth.github.io/cloudsesame/</projectUrl>
+    <projectSourceUrl>https://github.com/NexiHealth/cloudsesame</projectSourceUrl>
+    <docsUrl>https://nexihealth.github.io/cloudsesame/</docsUrl>
+    <bugTrackerUrl>https://github.com/NexiHealth/cloudsesame/issues</bugTrackerUrl>
     <packageSourceUrl>https://github.com/NexiHealth/cloudsesame/tree/main/packaging/chocolatey</packageSourceUrl>
+    <iconUrl>https://nexihealth.github.io/cloudsesame/logo.png</iconUrl>
     <licenseUrl>https://github.com/NexiHealth/cloudsesame/blob/main/LICENSE</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <tags>cloudsesame cli</tags>
-    <summary>cloudsesame CLI</summary>
-    <description>cloudsesame CLI</description>
+    <releaseNotes>https://github.com/NexiHealth/cloudsesame/releases</releaseNotes>
+    <tags>cloudsesame cli gcloud aws azure login auth devops</tags>
+    <summary>Checks that you're online and logged in to gcloud, aws and az before you work, and logs you in when you're not.</summary>
+    <description><![CDATA[
+**Open sesame for your clouds.**
+
+cloudsesame is a command-line tool that checks that you're online and logged in to the Google Cloud CLI (`gcloud`), the AWS CLI (`aws`) and the Azure CLI (`az`) before you start dev or infra work, and logs you in when you're not.
+
+Instead of a script dying halfway through with `invalid_grant`, `ExpiredToken` or `AADSTS700082`, cloudsesame checks everything in a few seconds up front:
+
+- **Connectivity.** It knows you're offline before it tries to log you in.
+- **Logins.** gcloud (user and Application Default Credentials), AWS (SSO and console login), and Azure.
+- **The right account.** Expected gcloud account, project and quota project, AWS account ID, Azure tenant and subscription.
+- **The right permissions.** Optional IAM checks on GCP and Azure.
+- **One-key fixes.** It runs the exact login command for you, then checks again.
+- **CI and AI agents.** No prompts without a terminal: clear exit codes, the command to run, and `--json`.
+
+## Usage
+
+```
+cloudsesame init     # write sesame.config.ts from the CLIs you have installed
+cloudsesame          # check, and offer to log in where needed
+cloudsesame check    # report only, never prompts
+```
+
+cloudsesame calls the cloud CLIs you already have installed; it does not install them.
+
+Documentation: https://nexihealth.github.io/cloudsesame/
+]]></description>
   </metadata>
   <files>
     <file src="tools\**" target="tools" />
