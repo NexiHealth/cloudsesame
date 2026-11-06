@@ -23,7 +23,7 @@ cloudsesame infra      # same as: cloudsesame auth infra (a group)
 
 Checks each provider and, when one isn't ready, asks:
 
-- **Log in** runs the provider's fix, e.g. `aws sso login --profile dev`, then checks again. Shown as **Fix** when the fix isn't a login (like `gcloud config set project`), and as **Retry** after a failed attempt.
+- **Log in** runs the provider's fix, e.g. `aws sso login --profile dev`, then checks again. Shown as **Fix** when the fix isn't a login (like `gcloud config set project`), and as **Retry** after a failed attempt. If a fix succeeds but uncovers another (e.g. `gcloud auth login --update-adc` resets the ADC quota project), the next fix runs right away without asking again.
 - **Skip** continues without it.
 - **Stop** exits with code 5.
 
@@ -75,7 +75,7 @@ Writes `sesame.config.ts` (or `sesame.config.json` with `--json`) in the current
 Precedence: flags > config > defaults. `--offline` and `--unauthenticated` win over `--skip` and `--yes`, which win over the config's [`offline` and `unauthenticated`](./configuration#behavior).
 
 ::: info --yes logs in once
-With `--yes` (or `unauthenticated: "login"`), each provider gets one login attempt. If it's still not ready after that, the run fails: there's no one to ask whether to retry.
+With `--yes` (or `unauthenticated: "login"`), each provider gets one login attempt (plus any follow-up fixes a successful one uncovers). If it's still not ready after that, the run fails: there's no one to ask whether to retry.
 :::
 
 ## No terminal

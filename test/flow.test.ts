@@ -111,6 +111,31 @@ describe("unauthenticated", () => {
     ]);
   });
 
+  test("a successful fix that uncovers another runs the next one without asking", async () => {
+    // gcloud logged out and on the wrong project: login first, then `config set project`.
+    let loggedIn = false;
+    let project = "other";
+    const exec = async (_cmd: string, args: string[]) => {
+      const line = args.join(" ");
+      if (line.startsWith("auth print-access-token")) return loggedIn ? { code: 0, stdout: "tok", stderr: "" } : { code: 1, stdout: "", stderr: "not logged in" };
+      if (line.startsWith("config get-value project")) return { code: 0, stdout: `${project}\n`, stderr: "" };
+      return { code: 0, stdout: "me@x.com\n", stderr: "" };
+    };
+    const handOff = (command: string[]) => {
+      if (command.includes("login")) loggedIn = true;
+      else project = "p";
+      return 0;
+    };
+    const ui = new ScriptedUi(["login"], handOff);
+    const r = await runFlow({ ...options(), targets: [{ provider: "gcloud", target: { credentials: "user", project: "p" } }] }, ui, deps({ exec }));
+    expect(ui.prompts).toHaveLength(1);
+    expect(ui.handOffs).toEqual([
+      ["gcloud", "auth", "login"],
+      ["gcloud", "config", "set", "project", "p"],
+    ]);
+    expect(r.code).toBe(0);
+  });
+
   test("login policy: one attempt, then fail", async () => {
     const world = awsWorld(false);
     const ui = new ScriptedUi([], world.handOff);
