@@ -60,9 +60,16 @@ export async function runFlow({ config, targets, policies, interactive }: FlowOp
 
   for (const [index, target] of targets.entries()) {
     let attempts = 0;
+    let lastOk = false;
+    const ran = new Set<string>();
     while (!isReady(state[index]!.statuses)) {
       const fix = fixFor(state[index]!.statuses);
-      const { action, noTerminal } = await decideTarget(targetLabel(target), fix, attempts, policies, interactive, ui);
+      // A fix worked but uncovered the next step (e.g. login -> quota project): run it without asking again.
+      // Only fixes not yet run for this target, so it can't loop.
+      const followUp = lastOk && !!fix && !ran.has(formatCommand(fix));
+      const { action, noTerminal } = followUp
+        ? { action: "login" as const, noTerminal: false }
+        : await decideTarget(targetLabel(target), fix, attempts, policies, interactive, ui);
       noTerminalFailure ||= noTerminal;
 
       if (action === "stop") return result(ExitCode.Stopped);
@@ -77,8 +84,10 @@ export async function runFlow({ config, targets, policies, interactive }: FlowOp
       }
 
       attempts++;
+      ran.add(formatCommand(fix!));
       ui.emit({ type: "login", index, command: fix! });
       const code = await ui.handOff(fix!);
+      lastOk = code === 0;
       if (code === 0) loggedIn = true;
       else ui.emit({ type: "login-failed", index, code });
       await check(index);
