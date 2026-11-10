@@ -17,6 +17,7 @@ export function fakeExec(responses: Record<string, Partial<ExecResult>>) {
 
 export const ctx = (exec: Exec, files: Record<string, string> = {}, http: Http = async () => ({ status: 0, body: "no network in tests" })) => ({
   exec,
+  which: (_cmd: string): string | undefined => undefined,
   http,
   readFile: async (path: string) => files[path],
   env: { CLOUDSDK_CONFIG: "/gc" },

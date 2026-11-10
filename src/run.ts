@@ -17,14 +17,17 @@ const width = Math.max(...Object.values(commands).map((c) => c.usage.length));
 const HELP = `${pkg.name} v${VERSION}: open sesame for your clouds
 
 Usage:
-  ${pkg.name} [command] [providers|groups...] [options]
+  ${pkg.name} [command] [providers|groups...] [options] [-- <command...>]
 
 Commands:
 ${Object.values(commands)
   .map((c) => `  ${c.usage.padEnd(width)}  ${c.description}`)
   .join("\n")}
 
-  Without a command, runs \`${DEFAULT_COMMAND}\`. Providers: gcloud, aws, az, or a group from the config.
+  Without a command, runs \`${DEFAULT_COMMAND}\`. Providers: gcloud, aws, az, cloudflare, wrangler, or a group from the config.
+
+  After \`--\`, a command to run once ready, with credentials tools can't find themselves
+  (CLOUDFLARE_API_TOKEN from the cf login), e.g. \`${pkg.name} infra -- tofu plan\`. Exits with its code.
 
 Options:
   --skip                    Never prompt or fail: skip unauthenticated providers, continue offline
@@ -37,6 +40,7 @@ Options:
   -c, --config <file>       Config file (default: nearest sesame.config.* up to the git root)
   --json                    JSON output (implies --no-input); for init, write sesame.config.json
   --force                   init: overwrite an existing config
+  --shell <shell>           env: sh | fish | pwsh (default: from $SHELL; pwsh on Windows)
   --plain                   Plain text output without Ink (also: CLOUDSESAME_PLAIN=1; automatic on Node < 22)
   -h, --help                Show help
   -v, --version             Show version
@@ -44,7 +48,8 @@ Options:
 Without a terminal, prompts fail (exit 4) unless --skip is passed or the config sets noTerminal: "skip".
 
 Exit codes:
-  0 ready · 1 error · 2 usage/config error · 3 offline · 4 not ready (login, account, permissions) · 5 stopped · 130 interrupted`;
+  0 ready · 1 error · 2 usage/config error · 3 offline · 4 not ready (login, account, permissions) · 5 stopped · 130 interrupted
+  With \`-- <command>\`: the command's exit code once ready (127 if it can't be started).`;
 
 const enumFlag = <T extends string>(name: string, value: string | undefined, allowed: readonly T[]): T | undefined => {
   if (value === undefined || (allowed as readonly string[]).includes(value)) return value as T | undefined;
@@ -69,6 +74,7 @@ function parse(argv: string[]) {
       offline: { type: "string" },
       unauthenticated: { type: "string" },
       animation: { type: "string" },
+      shell: { type: "string" },
     },
   });
   const flags: Flags = {
@@ -83,14 +89,21 @@ function parse(argv: string[]) {
     offline: enumFlag("offline", values.offline, ["prompt", "continue", "fail"]),
     unauthenticated: enumFlag("unauthenticated", values.unauthenticated, ["prompt", "login", "skip", "fail"]),
     animation: enumFlag("animation", values.animation, ["after-login", "always", "never"]),
+    shell: enumFlag("shell", values.shell, ["sh", "fish", "pwsh"]),
   };
   return { help: !!values.help, version: !!values.version, flags, positionals };
 }
 
 export async function run(argv: string[], cwd = process.cwd()): Promise<number> {
+  // Everything after the first `--` is a command to run, not ours to parse.
+  const split = argv.indexOf("--");
+  const own = split === -1 ? argv : argv.slice(0, split);
+  const after = split === -1 ? undefined : argv.slice(split + 1);
   let parsed: ReturnType<typeof parse>;
   try {
-    parsed = parse(argv);
+    parsed = parse(own);
+    if (after?.length === 0) throw new UsageError("Missing command after --");
+    if (after && parsed.flags.json) throw new UsageError("--json can't be combined with a command after --");
   } catch (error) {
     console.error(`✖ ${(error as Error).message}\n\nRun \`${pkg.name} --help\` for usage.`);
     return ExitCode.Usage;
@@ -110,11 +123,14 @@ export async function run(argv: string[], cwd = process.cwd()): Promise<number> 
   const [first, ...rest] = positionals;
   const named = first !== undefined && first in commands;
   const command = commands[named ? first : DEFAULT_COMMAND]!;
+  const stderr = !!after || !!command.stdoutIsResult;
   const ctx: Context = {
     args: named ? rest : positionals,
+    command: after,
+    stderr,
     cwd,
     flags,
-    interactive: !!process.stdin.isTTY && !!process.stdout.isTTY && !flags.noInput,
+    interactive: !!process.stdin.isTTY && !!(stderr ? process.stderr : process.stdout).isTTY && !flags.noInput,
   };
 
   try {

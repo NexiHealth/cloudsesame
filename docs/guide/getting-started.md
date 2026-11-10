@@ -1,6 +1,6 @@
 # Getting started
 
-cloudsesame makes sure you're online and logged in to your clouds (gcloud, aws, az) before you work, and logs you in when you're not. Run it by hand, before `dev`, before infra commands, or in CI.
+cloudsesame makes sure you're online and logged in to your clouds (gcloud, aws, az, wrangler, and Cloudflare API tokens) before you work, and logs you in when you're not. Run it by hand, before `dev`, before infra commands, or in CI.
 
 <Terminal />
 

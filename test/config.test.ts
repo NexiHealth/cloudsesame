@@ -60,6 +60,15 @@ describe("config", () => {
     expect(ok.config.gcloud[0].permissions).toEqual(["aiplatform.endpoints.predict"]);
   });
 
+  test("cloudflare fields are validated", async () => {
+    const load = async (json: object) => loadConfig({ cwd: project(`cf-${Math.random()}`, { ".git/HEAD": "", "sesame.config.json": JSON.stringify(json) }) }).catch((e) => e);
+    expect((await load({ cloudflare: { accountId: "123" } })).message).toContain("cloudflare[0].accountId");
+    expect((await load({ cloudflare: { zones: ["https://acme.dev"] } })).message).toContain("cloudflare[0].zones[0]");
+    expect((await load({ cloudflare: { tokenEnv: "not a var" } })).message).toContain("cloudflare[0].tokenEnv");
+    const ok = await load({ cloudflare: { tokenEnv: "CF_TOKEN", accountId: "0123456789abcdef0123456789abcdef", zones: ["acme.dev"] }, groups: { infra: ["cloudflare"] } });
+    expect(ok.config.cloudflare[0].zones).toEqual(["acme.dev"]);
+  });
+
   test("no config is an empty config", async () => {
     expect(await loadConfig({ cwd: project("none", { ".git/HEAD": "" }) })).toEqual({ config: {} });
   });

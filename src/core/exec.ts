@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { delimiter, join } from "node:path";
+import { delimiter, isAbsolute, join } from "node:path";
 
 export interface ExecResult {
   code: number;
@@ -15,6 +15,18 @@ const isWindows = process.platform === "win32";
 // gcloud/az are .cmd shims on Windows, which can only be spawned through a shell.
 const quote = (arg: string) => (isWindows && /[\s"&|<>^]/.test(arg) ? `"${arg.replace(/"/g, '""')}"` : arg);
 
+/**
+ * This executable, when it's a Bun-compiled binary (the Homebrew/Scoop/Chocolatey builds). Those run as the `bun` CLI
+ * with `BUN_BE_BUN=1`, so `<self> x <package>` works without Bun installed.
+ */
+export function selfBun(): string | undefined {
+  const main = (globalThis as { Bun?: { main?: string } }).Bun?.main;
+  return main && /\$bunfs|~BUN/.test(main) ? process.execPath : undefined;
+}
+
+// cloudsesame never spawns itself except as `bun`.
+const spawnEnv = (cmd: string, env?: Record<string, string>) => ({ ...process.env, ...(cmd === selfBun() && { BUN_BE_BUN: "1" }), ...env });
+
 /** Run a command non-interactively and capture its output. Never rejects. */
 export const exec: Exec = (cmd, args, opts = {}) =>
   new Promise((resolve) => {
@@ -22,7 +34,7 @@ export const exec: Exec = (cmd, args, opts = {}) =>
       stdio: ["ignore", "pipe", "pipe"],
       shell: isWindows,
       timeout: opts.timeout,
-      env: { ...process.env, ...opts.env },
+      env: spawnEnv(cmd, opts.env),
     });
     let stdout = "";
     let stderr = "";
@@ -34,9 +46,10 @@ export const exec: Exec = (cmd, args, opts = {}) =>
     );
   });
 
-/** Locate an executable on PATH (honours PATHEXT on Windows). */
+/** Locate an executable on PATH, or check an absolute path (honours PATHEXT on Windows). */
 export function which(cmd: string): string | undefined {
-  const exts = isWindows ? (process.env.PATHEXT ?? ".EXE;.CMD;.BAT").split(";") : [""];
+  const exts = isWindows ? ["", ...(process.env.PATHEXT ?? ".EXE;.CMD;.BAT").split(";")] : [""];
+  if (isAbsolute(cmd)) return exts.map((ext) => cmd + ext).find((file) => existsSync(file));
   for (const dir of (process.env.PATH ?? "").split(delimiter)) {
     for (const ext of exts) {
       const file = join(dir, cmd + ext);
@@ -46,13 +59,16 @@ export function which(cmd: string): string | undefined {
   return undefined;
 }
 
-/** Run a command attached to the terminal (logins open browsers, prompt, etc.). Resolves with its exit code. */
-export function execInteractive([cmd, ...args]: string[]): Promise<number> {
+/**
+ * Run a command attached to the terminal (logins open browsers, prompt, etc.). Resolves with its exit code.
+ * `stdoutToStderr`: when our stdout is reserved for output (`eval "$(cloudsesame env)"`), the command prints to stderr.
+ */
+export function execInteractive([cmd, ...args]: string[], env?: Record<string, string>, { stdoutToStderr = false } = {}): Promise<number> {
   // Ctrl-C should stop the child, not us: we decide what happens next.
   const ignore = () => {};
   process.on("SIGINT", ignore);
   return new Promise<number>((resolve) => {
-    const child = spawn(cmd!, args.map(quote), { stdio: "inherit", shell: isWindows });
+    const child = spawn(cmd!, args.map(quote), { stdio: ["inherit", stdoutToStderr ? 2 : "inherit", "inherit"], shell: isWindows, env: spawnEnv(cmd!, env) });
     child.on("error", () => resolve(127));
     child.on("close", (code) => resolve(code ?? 1));
   }).finally(() => process.off("SIGINT", ignore));

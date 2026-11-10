@@ -1,6 +1,7 @@
 import type { Command } from "../command";
 import { flowCommand } from "./flow";
 import { init } from "./init";
+import { envCommand } from "./shell";
 
 export const commands: Record<string, Command> = {
   auth: flowCommand("auth", {
@@ -16,6 +17,7 @@ export const commands: Record<string, Command> = {
     description: "Report connectivity and login status; never prompts",
   }),
   init,
+  env: envCommand,
 };
 
 export const DEFAULT_COMMAND = "auth";

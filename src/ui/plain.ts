@@ -12,17 +12,24 @@ export function formatStatus(s: Status & { skipped?: true }): string[] {
   return lines;
 }
 
-/** Line-based UI: no colors, no cursor movement; prompts via readline. `silent` prints nothing (--json). */
+/**
+ * Line-based UI: no colors, no cursor movement; prompts via readline. `silent` prints nothing (--json).
+ * `stderr` keeps stdout free for a command's output or for `eval` (status, prompts and logins all go to stderr).
+ */
 export class PlainUi implements Ui {
   private targets: Target[] = [];
   // Initial checks run in parallel; print them in target order.
   private pending = new Map<number, Status[]>();
   private nextToPrint = 0;
 
-  constructor(private readonly opts: { silent?: boolean } = {}) {}
+  constructor(private readonly opts: { silent?: boolean; stderr?: boolean } = {}) {}
+
+  private get out() {
+    return this.opts.stderr ? process.stderr : process.stdout;
+  }
 
   private log(line: string) {
-    if (!this.opts.silent) console.log(line);
+    if (!this.opts.silent) (this.opts.stderr ? console.error : console.log)(line);
   }
 
   emit(event: FlowEvent): void {
@@ -63,7 +70,7 @@ export class PlainUi implements Ui {
   }
 
   async choose<T extends string>(message: string, choices: Choice<T>[]): Promise<T> {
-    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    const rl = createInterface({ input: process.stdin, output: this.out });
     const interrupted = new Promise<never>((_, reject) => rl.once("SIGINT", () => reject(new InterruptError())));
     const options = choices.map((c) => `[${c.key}] ${c.label}${c.hint ? ` (${c.hint})` : ""}`).join("  ");
     try {
@@ -78,6 +85,6 @@ export class PlainUi implements Ui {
   }
 
   handOff(command: string[]): Promise<number> {
-    return execInteractive(command);
+    return execInteractive(command, undefined, { stdoutToStderr: this.opts.stderr });
   }
 }

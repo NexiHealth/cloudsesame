@@ -85,6 +85,74 @@ export default {
 
 Not using `package.json`? Run `cloudsesame infra && tofu plan` from a Makefile, a `justfile` or your shell.
 
+## Cloudflare Workers
+
+`wrangler deploy` uses your `wrangler login`. Check it before dev and deploys:
+
+::: code-group
+
+```ts [sesame.config.ts]
+import type { Config } from "cloudsesame";
+
+export default {
+  wrangler: { account: "Acme" }, // ID or name, like account_id in wrangler.jsonc
+} satisfies Config;
+```
+
+```json [package.json]
+{
+  "scripts": {
+    "predev": "cloudsesame predev",
+    "deploy": "cloudsesame wrangler && wrangler deploy"
+  }
+}
+```
+
+:::
+
+Logged out or expired, cloudsesame offers `wrangler login`. In CI, set `CLOUDFLARE_API_TOKEN` instead: wrangler uses it, and so does the check.
+
+## DNS on Cloudflare with OpenTofu
+
+The [Cloudflare provider](https://search.opentofu.org/provider/cloudflare/cloudflare/latest) only reads a token from `CLOUDFLARE_API_TOKEN`. Run OpenTofu through cloudsesame and it gets one from your `cf` login, refreshed every run:
+
+::: code-group
+
+```ts [sesame.config.ts]
+import type { Config } from "cloudsesame";
+
+export default {
+  gcloud: { credentials: "adc", project: "acme-prod" }, // state bucket, say
+  cloudflare: { zones: ["acme.dev", "acme.io"] },
+  groups: { infra: ["gcloud", "cloudflare"] },
+} satisfies Config;
+```
+
+```json [package.json]
+{
+  "scripts": {
+    "plan": "cloudsesame infra -- tofu plan",
+    "apply": "cloudsesame infra -- tofu apply"
+  }
+}
+```
+
+:::
+
+The first time, cloudsesame offers `cf auth login` (a browser login; `cf` runs through Bun, so there's nothing to install). After that, every `plan` and `apply` refreshes the login silently and runs `tofu` with `CLOUDFLARE_API_TOKEN` set:
+
+```
+✔ gcloud adc
+✔ cloudflare login  me@acme.dev
+✔ cloudflare zones  acme.dev, acme.io
+```
+
+Prefer typing `tofu plan` yourself? Set the token in your shell with `eval "$(cloudsesame env infra)"`, then run `tofu` directly (rerun it when the token expires, after about an hour). See [Shell integration](./shell).
+
+`wrangler login` doesn't cover this: OpenTofu doesn't read it, and it has no DNS access (see [Providers](./providers#cloudflare-wrangler-or-cloudflare)). If the repo also deploys Workers, check both: `groups: { infra: ["wrangler", "cloudflare"] }`.
+
+In CI, set `CLOUDFLARE_API_TOKEN` to an [API token](https://dash.cloudflare.com/profile/api-tokens) (the **Edit zone DNS** template): cloudsesame verifies it instead of the `cf` login and passes it through.
+
 ## Azure
 
 Pin the tenant and the subscription (by ID or name):

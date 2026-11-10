@@ -1,6 +1,6 @@
 # Providers
 
-cloudsesame checks three clouds through their own CLIs: `gcloud`, `aws` and `az`. It only reads state and tests tokens. It never logs in on its own: logins happen when you choose **Log in**, or with `--yes`.
+cloudsesame checks clouds through their own CLIs: `gcloud`, `aws`, `az`, and Cloudflare's `wrangler` and `cf` (as `cloudflare`). It only reads state and tests tokens. It never logs in on its own: logins happen when you choose **Log in**, or with `--yes`.
 
 Every check ends in one of these states:
 
@@ -10,7 +10,7 @@ Every check ends in one of these states:
 | `unauthenticated` | <span class="cs-sym err">✖&#xFE0E;</span> | Not logged in, or the login expired. |
 | `mismatch` | <span class="cs-sym warn">!</span> | Logged in, but to the wrong account, project, tenant or subscription. |
 | `denied` | <span class="cs-sym err">✖&#xFE0E;</span> | Logged in, but missing [permissions](#permissions) you asked for. Logging in again doesn't help, so there's no fix to run: ask an admin for the role. |
-| `missing` | <span class="cs-sym err">✖&#xFE0E;</span> | The CLI isn't on your `PATH`. The message links to its install page. |
+| `missing` | <span class="cs-sym err">✖&#xFE0E;</span> | The CLI isn't on your `PATH`. The message links to its install page. (`cloudflare` instead offers to install Bun, see [cloudflare](#cloudflare).) |
 | `error` | <span class="cs-sym err">✖&#xFE0E;</span> | Something else went wrong, like an unknown AWS profile (fixed with `aws configure sso`). |
 
 Anything other than `ok` makes the target not ready (exit code 4 if it isn't resolved). When there's a command that fixes it, cloudsesame shows it (`→ …`) and offers to run it. After running a fix, it checks that target again, so a target with several problems is fixed one step at a time.
@@ -75,6 +75,66 @@ One check per target, labeled with the subscription, else the tenant, else `acco
 The identity shown is the signed-in user.
 
 With `actions` or `dataActions`, a second line, **permissions**, checks them once the account, tenant and subscription are right. See [Permissions](#permissions).
+
+## Cloudflare: `wrangler` or `cloudflare`?
+
+Cloudflare's tools use different logins:
+
+| You run | It authenticates with | Check with |
+| --- | --- | --- |
+| `wrangler deploy`, `wrangler dev`, … | `wrangler login` (OAuth), or `CLOUDFLARE_API_TOKEN` when set | [`wrangler`](#wrangler) |
+| OpenTofu/Terraform (`cloudflare/cloudflare` provider) | `CLOUDFLARE_API_TOKEN` only (or the legacy `CLOUDFLARE_API_KEY` + `CLOUDFLARE_EMAIL`, or `CLOUDFLARE_API_USER_SERVICE_KEY`) | [`cloudflare`](#cloudflare), with [`--`](./commands#run-a-command) |
+
+The OpenTofu provider never reads a CLI login. And wrangler's login couldn't manage DNS anyway: wrangler only requests Workers-related OAuth scopes (`zone:read`, but no DNS records). [`cloudflare`](#cloudflare) logs in with Cloudflare's [`cf` CLI](https://www.npmjs.com/package/cf) instead, which gets every scope, and hands that login to OpenTofu as `CLOUDFLARE_API_TOKEN`. A repo that deploys Workers and manages DNS checks both.
+
+## wrangler
+
+```ts
+wrangler: { account: "Acme" }
+```
+
+One check, `wrangler whoami --json`, which shows what wrangler will deploy with:
+
+| Problem | Fix |
+| --- | --- |
+| Not logged in, or the OAuth login expired and can't be refreshed | `wrangler login` |
+| Logged in, but `account` (ID or name) isn't among the accounts the login can reach (`mismatch`) | `wrangler login` (as someone with access) |
+| `CLOUDFLARE_API_TOKEN` is set but invalid | None: wrangler prefers the token and `wrangler login` refuses to run while it's set. Fix or unset the variable. |
+
+The line is labeled `login` for the OAuth login, or `token` when `CLOUDFLARE_API_TOKEN` (or `CLOUDFLARE_API_KEY`) is set. The identity shown is your email, or the account for account-owned tokens. wrangler is often a project dependency rather than a global install: it's found when cloudsesame runs from a package script (`node_modules/.bin` is on the `PATH`), or install it globally.
+
+## cloudflare
+
+```ts
+cloudflare: { zones: ["acme.dev"] }
+```
+
+```sh
+cloudsesame cloudflare -- tofu plan
+```
+
+For OpenTofu/Terraform. You log in once with Cloudflare's [`cf` CLI](https://www.npmjs.com/package/cf) (`cf auth login`, in the browser), and cloudsesame runs your command with that login as `CLOUDFLARE_API_TOKEN`. You never create, copy or export a token.
+
+| Check | Runs when | How | Fix |
+| --- | --- | --- | --- |
+| **login** | `CLOUDFLARE_API_TOKEN` isn't set | `cf auth whoami`, which also refreshes the login. With `accountId`, the login must reach that account. | `cf auth login` (`--force` when it's expired or the wrong account) |
+| **token** | `CLOUDFLARE_API_TOKEN` (or `tokenEnv`) is set, e.g. in CI | [`/user/tokens/verify`](https://developers.cloudflare.com/api/resources/user/subresources/tokens/methods/verify/) must say it's `active`. With `accountId`, account-owned tokens are verified at `/accounts/<accountId>/tokens/verify`. | None: fix or unset the variable |
+| **zones** | `zones` is set and the login or token works | Each zone must be visible, with readable DNS records. Otherwise `denied`, e.g. `acme.dev: no access` or `acme.dev: can't read DNS`. | None (`denied`) |
+
+**Running `cf`:** you don't need to install it. cloudsesame uses `cf` if it's on your `PATH`, else runs it with Bun (`bun x cf`): Bun on your `PATH` or in `~/.bun/bin`, or, for the [standalone binaries](./installation) (Homebrew, Scoop, Chocolatey), the binary itself, which is built with Bun. Only when none of those exist (an npm install without Bun) is the line `missing`, with Bun's official installer as the fix (`curl -fsSL https://bun.sh/install | bash`, or `irm bun.sh/install.ps1 | iex` on Windows). After it, cloudsesame goes straight to `cf auth login`.
+
+**Handing the login to OpenTofu** works in one of two ways (see [Shell integration](./shell)):
+- `eval "$(cloudsesame env)"` exports `CLOUDFLARE_API_TOKEN` into your shell, then run `tofu` separately
+- `cloudsesame infra -- tofu plan` runs it with the token set
+
+The login's access token lasts an hour, and each check refreshes it, so you only see the browser again when `cf`'s refresh token expires. A single command that runs longer than an hour would fail partway.
+
+- cf has no command that prints its token, so cloudsesame reads it from the file `cf auth whoami` reports: `cloudflare/config/<profile>.json` in `~/Library/Preferences` (macOS), `~/.config` (Linux) or `%APPDATA%\xdg.config` (Windows), or `XDG_CONFIG_HOME` when set. Named `cf` profiles (`cf auth activate`) work too. If `cf` keeps the login in the OS keychain (`CLOUDFLARE_AUTH_USE_KEYRING`), it can't be read: log in with `CLOUDFLARE_AUTH_USE_KEYRING=false cf auth login`.
+- `cf` is a technical preview and needs Node 22 or newer when run with Node (it's run with Bun here).
+- In CI, set `CLOUDFLARE_API_TOKEN` to an [API token](https://dash.cloudflare.com/profile/api-tokens) (the **Edit zone DNS** template for DNS records): it's verified instead and passed through unchanged. With `tokenEnv: "CF_DNS_TOKEN"`, the token is read from that variable and passed on as `CLOUDFLARE_API_TOKEN`.
+- Edit permission can't be tested without changing something, so **zones** proves read access only.
+- With no config, `cloudflare` isn't checked unless you name it (`cloudsesame cloudflare`).
+- Token and zone checks are direct HTTPS calls (see the proxy note below).
 
 ## Permissions
 

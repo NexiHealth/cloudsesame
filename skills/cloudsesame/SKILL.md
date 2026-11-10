@@ -5,7 +5,7 @@ description: Set up and use cloudsesame, the CLI that checks connectivity and gc
 
 # cloudsesame
 
-`cloudsesame` checks that the machine is online and logged in to gcloud, aws and/or az, and offers to log in when it isn't. Projects run it before `dev` (`predev`) and before infra commands (`auth`).
+`cloudsesame` checks that the machine is online and logged in to gcloud, aws and/or az (and Cloudflare: wrangler, or the cf login OpenTofu uses), and offers to log in when it isn't. Projects run it before `dev` (`predev`) and before infra commands (`auth`).
 
 ## Running it as an agent
 
@@ -33,6 +33,8 @@ Never pass `-y`/`--yes` or `--unauthenticated login`: they start interactive log
 | 3 | Offline | Check connectivity, or `predev --skip` to continue offline |
 | 4 | A provider isn't ready (logged out, wrong account/project, missing permissions, CLI missing) | See above. For `denied` (missing permissions), logging in doesn't help: tell the user which role to request |
 | 5 | The user chose Stop | Don't retry; ask the user |
+
+With `cloudsesame … -- <command>`, once ready, the exit code is the command's own.
 
 ## Setting it up in a project
 
@@ -76,6 +78,8 @@ Never pass `-y`/`--yes` or `--unauthenticated login`: they start interactive log
 - **gcloud `credentials`**: `"adc"` for code that uses Google SDKs or OpenTofu/Terraform (Application Default Credentials), `"user"` for scripts that shell out to `gcloud`, `"both"` (default) when unsure. Add `project`/`account` to catch logins to the wrong one. Add `permissions` (with `project`) for the IAM permissions the code needs, e.g. `aiplatform.endpoints.predict` for Vertex AI. Add `quotaProject` (needs ADC) when Google APIs called with user ADC must bill quota to a specific project (`gcloud auth application-default set-quota-project`).
 - **aws `profile`**: the profile from `~/.aws/config` the project uses (`aws configure list-profiles`). cloudsesame picks the right login itself (`aws sso login` for SSO profiles, `aws login` for console-login profiles), and offers `aws configure sso --profile <name>` when the profile doesn't exist yet. Add `accountId` to catch the wrong account.
 - **az**: `tenant` and/or `subscription` (ID or name) to pin them.
+- **wrangler**: for projects that run `wrangler` (deploy, dev). Checks `wrangler whoami`; fix is `wrangler login`. `account` (ID or name) pins the account. If `CLOUDFLARE_API_TOKEN` is set, wrangler uses it instead, and a bad token has no fix.
+- **cloudflare**: for OpenTofu/Terraform with the Cloudflare provider. Checks Cloudflare's `cf` CLI login (`cf auth whoami`, run as `bun x cf` when cf isn't installed; fix `cf auth login`, a browser login the user must do). OpenTofu can't read that login, so run it through cloudsesame: `cloudsesame infra -- tofu plan` runs `tofu plan` with `CLOUDFLARE_API_TOKEN` set from the login. Put that in package.json scripts instead of a bare `tofu` call. Never run `cloudsesame env` yourself: it prints the token, which would end up in your output. Humans may use `eval "$(cloudsesame env)"` in their own shell. If `CLOUDFLARE_API_TOKEN` (or `tokenEnv`) is already set (CI), that token is verified and passed on instead. `zones` (domain names) checks each zone's DNS is readable. Not auto-detected without a config.
 - **`groups`**: name the set of providers a workflow needs, so scripts can run `cloudsesame <group>`.
 - **`noTerminal: "skip"`**: only if the project prefers CI and agents to continue silently instead of failing. Default is `"fail"`, which is usually right.
 - `predev` is lenient (offline and skipping are allowed); `auth` (the default command, also `cloudsesame <provider|group>`) always fails offline. Add `--strict` to make skips fail.
@@ -89,7 +93,9 @@ File: nearest `sesame.config.{ts,mts,js,mjs,json}` from the current directory up
 | `gcloud` | | `{ credentials?: "user" \| "adc" \| "both", account?, project?, quotaProject?, permissions?: string[] }` or a list |
 | `aws` | | `{ profile?, accountId? }` or a list |
 | `az` | | `{ tenant?, subscription?, actions?: string[], dataActions?: string[], permissionScope? }` or a list |
-| `groups` | | `{ [name]: ("gcloud" \| "aws" \| "az")[] }` |
+| `wrangler` | | `{ account? }` or a list |
+| `cloudflare` | | `{ tokenEnv?, accountId?, zones?: string[] }` or a list |
+| `groups` | | `{ [name]: ("gcloud" \| "aws" \| "az" \| "wrangler" \| "cloudflare")[] }` |
 | `offline` | `"prompt"` | `"prompt" \| "continue" \| "fail"` (predev) |
 | `unauthenticated` | `"prompt"` | `"prompt" \| "login" \| "skip" \| "fail"` |
 | `noTerminal` | `"fail"` | `"fail" \| "skip"` |
@@ -103,4 +109,4 @@ The config holds no secrets (profiles, project IDs, account IDs), so commit it.
 
 ### Useful flags
 
-`--skip` (never prompt or fail) · `--strict` (skips fail) · `--json` (machine output, no prompts) · `--no-input` (behave as without a terminal) · `--plain` (no colors/animation) · `-c <file>` (config path). Full list: `cloudsesame --help`.
+`-- <command>` (run it once ready, e.g. `cloudsesame infra -- tofu plan`; put a command or group before `--`) · `--skip` (never prompt or fail) · `--strict` (skips fail) · `--json` (machine output, no prompts) · `--no-input` (behave as without a terminal) · `--plain` (no colors/animation) · `-c <file>` (config path). Full list: `cloudsesame --help`.

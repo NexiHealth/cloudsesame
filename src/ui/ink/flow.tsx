@@ -13,6 +13,8 @@ type Suspend = ReturnType<typeof useApp>["suspendTerminal"];
 /** Bridges the flow engine (Ui) and the React tree (AppBridge). */
 class InkUi implements Ui, AppBridge {
   readonly store = new Store();
+
+  constructor(private readonly stderr = false) {}
   private suspend?: Suspend;
   private rejectInterrupt!: (error: Error) => void;
   /** Rejects on Ctrl-C; raced against the flow. */
@@ -41,7 +43,7 @@ class InkUi implements Ui, AppBridge {
   async handOff(command: string[]): Promise<number> {
     let code = 1;
     const run = async () => {
-      code = await execInteractive(command);
+      code = await execInteractive(command, undefined, { stdoutToStderr: this.stderr });
     };
     await (this.suspend ? this.suspend(run) : run());
     return code;
@@ -60,10 +62,11 @@ class InkUi implements Ui, AppBridge {
   animationDone = () => this.store.update((v) => ({ ...v, animate: false }));
 }
 
-export async function runFlowInk(opts: FlowOptions, animation?: AnimationPolicy): Promise<FlowResult> {
-  const ui = new InkUi();
+/** `stderr`: render there, keeping stdout free for a command's output or for `eval`. */
+export async function runFlowInk(opts: FlowOptions, animation?: AnimationPolicy, { stderr = false } = {}): Promise<FlowResult> {
+  const ui = new InkUi(stderr);
   ui.interrupted.catch(() => {});
-  const app = render(<FlowApp bridge={ui} />, { exitOnCtrlC: false });
+  const app = render(<FlowApp bridge={ui} />, { exitOnCtrlC: false, ...(stderr && { stdout: process.stderr }) });
 
   let result: FlowResult;
   try {

@@ -34,6 +34,7 @@ export async function detectConfig({ exec, which }: Pick<Deps, "exec" | "which">
         found.aws = (profile ? { profile } : {}) satisfies AwsTarget;
         otherAwsProfiles = profiles.filter((p) => p !== profile);
       }),
+    which("wrangler") && (found.wrangler = {}),
     which("az") &&
       value("az", ["account", "show", "--query", "name", "--output", "tsv"]).then((subscription) => {
         found.az = subscription ? { subscription } : {};

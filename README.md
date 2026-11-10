@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>Open sesame for your clouds.</b><br>
-  Checks that you're online and logged in to <b>gcloud</b>, <b>aws</b> and <b>az</b> before you work, and logs you in when you're not.
+  Checks that you're online and logged in to <b>gcloud</b>, <b>aws</b>, <b>az</b> and <b>Cloudflare</b> before you work, and logs you in when you're not.
 </p>
 
 <p align="center">
@@ -73,6 +73,8 @@ No config? cloudsesame checks every cloud CLI you have installed, with default s
 | `cloudsesame check` | Report only. Never prompts. Exit 4 if anything isn't ready |
 | `cloudsesame init` | Generate `sesame.config.ts` (or `--json` for `sesame.config.json`) |
 | `cloudsesame aws` · `cloudsesame infra` | Only check some providers, or a [group](#groups) from your config |
+| `cloudsesame infra -- tofu plan` | Check, then run the command with credentials tools can't find themselves (the Cloudflare token) |
+| `eval "$(cloudsesame env)"` | Check, then export those credentials into your shell, so `tofu plan` works on its own. See [Shell integration](https://nexihealth.github.io/cloudsesame/guide/shell) |
 
 ## Configure
 
@@ -185,6 +187,8 @@ export default {
 | `gcloud` | | `{ credentials?: "user" \| "adc" \| "both", account?, project?, quotaProject?, permissions? }` or a list |
 | `aws` | | `{ profile?, accountId? }` or a list. `profile` defaults to `AWS_PROFILE`, then `default` |
 | `az` | | `{ tenant?, subscription?, actions?, dataActions?, permissionScope? }` or a list |
+| `wrangler` | | `{ account? }` or a list. Checks `wrangler login` (or the token wrangler uses) |
+| `cloudflare` | | `{ tokenEnv?, accountId?, zones? }` or a list. Checks the `cf` login (run through Bun) and gives it to OpenTofu: `eval "$(cloudsesame env)"` or `cloudsesame infra -- tofu plan` ([Shell integration](https://nexihealth.github.io/cloudsesame/guide/shell)) |
 | <a id="groups"></a>`groups` | | Named sets of providers: `{ infra: ["gcloud", "aws"] }` → `cloudsesame infra` |
 | `offline` | `"prompt"` | `predev` when offline: `prompt` · `continue` · `fail` |
 | `unauthenticated` | `"prompt"` | When a provider isn't ready: `prompt` · `login` · `skip` · `fail` |
@@ -238,6 +242,8 @@ Without a terminal, cloudsesame never hangs on a prompt. It fails with exit code
 | `4` | A provider isn't ready: not logged in, wrong account or project, missing permissions, or CLI missing |
 | `5` | You chose Stop at a prompt |
 | `130` | Interrupted (Ctrl-C) |
+
+With `cloudsesame … -- <command>`, once ready, the exit code is the command's.
 
 **Agent Skill.** cloudsesame ships a [skill](skills/cloudsesame/SKILL.md) that teaches coding agents (Claude Code, Cursor, Codex…) to set it up, to ask you to run logins instead of attempting them, and to use `--skip` when a task doesn't need the cloud:
 

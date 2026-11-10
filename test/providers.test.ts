@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { aws } from "../src/core/providers/aws";
 import type { Http } from "../src/core/http";
 import { az, isAllowed } from "../src/core/providers/az";
+import { cfCommand, cloudflare, installBun } from "../src/core/providers/cloudflare";
+import { wrangler } from "../src/core/providers/wrangler";
 import { adcPath, gcloud } from "../src/core/providers/gcloud";
 import { ctx, fakeExec } from "./helpers";
 
@@ -316,5 +319,188 @@ describe("az permissions", () => {
     expect(isAllowed([openAiUser], chat)).toBe(false); // nor the other way round
     expect(isAllowed([{ dataActions: ["*"], notDataActions: [chat] }], chat, true)).toBe(false);
     expect(isAllowed([{ actions: ["Microsoft.Storage/*/read"] }], "Microsoft.Storage/storageAccounts/blobServices/read")).toBe(true);
+  });
+});
+
+describe("cloudflare", () => {
+  const ACCOUNT = "0123456789abcdef0123456789abcdef";
+  /** Fake Cloudflare API: `routes` maps a path prefix (after /client/v4) to [status, result]. */
+  function api(routes: Record<string, [number, unknown]>) {
+    const requests: Array<{ path: string; auth?: string }> = [];
+    const http: Http = async (url, init) => {
+      const path = url.replace("https://api.cloudflare.com/client/v4", "");
+      requests.push({ path, auth: init.headers?.authorization });
+      const key = Object.keys(routes).filter((k) => path.startsWith(k)).sort((a, b) => b.length - a.length)[0];
+      if (!key) return { status: 404, body: JSON.stringify({ success: false, errors: [{ code: 7003, message: "No route" }] }) };
+      const [status, result] = routes[key]!;
+      return { status, body: JSON.stringify(status === 200 ? { success: true, errors: [], result } : { success: false, errors: [{ code: 1000, message: result }] }) };
+    };
+    return { http, requests };
+  }
+  const run = (target: Parameters<typeof cloudflare.check>[0], http: Http, env: Record<string, string> = { CLOUDFLARE_API_TOKEN: "tok" }) =>
+    cloudflare.check(target, { ...ctx(fakeExec({}).exec, {}, http), env });
+  const active = { "/user/tokens/verify": [200, { id: "t", status: "active" }] } as Record<string, [number, unknown]>;
+
+  describe("cf login (no CLOUDFLARE_API_TOKEN)", () => {
+    const FILE = "/home/me/.config/cloudflare/config/default.json";
+    const whoami = (fields: object) => ({ "cf auth whoami": { stdout: JSON.stringify(fields) } });
+    const loggedIn = { authenticated: true, authSource: `OAuth token from ${FILE}`, tokenValid: true, email: "me@acme.dev", accounts: [{ id: ACCOUNT, name: "Acme" }] };
+    const file = { [FILE]: JSON.stringify({ oauth_token: "oauth", refresh_token: "r", expiration_time: "2099-01-01T00:00:00Z" }) };
+    const withCf = (exec: ReturnType<typeof fakeExec>["exec"], files: Record<string, string> = file, http: Http = api(active).http, which: (c: string) => string | undefined = (c) => (c === "cf" ? "/bin/cf" : undefined)) => ({
+      ...ctx(exec, files, http),
+      which,
+      env: {},
+    });
+
+    test("ok: identity is the email; env hands the OAuth token to commands", async () => {
+      const target = {};
+      const c = withCf(fakeExec(whoami(loggedIn)).exec);
+      expect(await cloudflare.check(target, c)).toEqual([{ provider: "cloudflare", label: "login", state: "ok", identity: "me@acme.dev" }]);
+      expect(await cloudflare.env!(target, c)).toEqual({ CLOUDFLARE_API_TOKEN: "oauth" });
+    });
+
+    test("not logged in offers cf auth login; an expired login, --force", async () => {
+      const out = await cloudflare.check({}, withCf(fakeExec(whoami({ authenticated: false, error: "Not logged in" })).exec));
+      expect(out).toEqual([{ provider: "cloudflare", label: "login", state: "unauthenticated", message: "not logged in", fix: ["cf", "auth", "login"] }]);
+      const [expired] = await cloudflare.check({}, withCf(fakeExec(whoami({ ...loggedIn, tokenValid: false })).exec));
+      expect(expired).toMatchObject({ state: "unauthenticated", fix: ["cf", "auth", "login", "--force"] });
+    });
+
+    test("without cf, runs it through Bun, found on PATH or in ~/.bun/bin", async () => {
+      const { exec, calls } = fakeExec({ "bun x cf auth whoami": { stdout: JSON.stringify({ authenticated: false }) } });
+      const [status] = await cloudflare.check({}, withCf(exec, file, api(active).http, (c) => (c === "bun" ? "/bin/bun" : undefined)));
+      expect(calls).toEqual(["bun x cf auth whoami"]);
+      expect(status!.fix).toEqual(["bun", "x", "cf", "auth", "login"]);
+      const home = join(homedir(), ".bun", "bin", "bun");
+      expect(cfCommand((c) => (c === home ? home : undefined), {})).toEqual([home, "x", "cf"]);
+      const custom = join("/opt/bun", "bin", "bun");
+      expect(cfCommand((c) => (c === custom ? c : undefined), { BUN_INSTALL: "/opt/bun" })).toEqual([custom, "x", "cf"]);
+    });
+
+    test("neither cf nor Bun: offers Bun's installer", async () => {
+      const [status] = await cloudflare.check({}, withCf(fakeExec({}).exec, file, api(active).http, () => undefined));
+      expect(status).toMatchObject({ label: "login", state: "missing", fix: installBun() });
+      expect(installBun("linux")).toEqual(["bash", "-c", "curl -fsSL https://bun.sh/install | bash"]);
+      expect(installBun("win32")).toEqual(["powershell", "-c", "irm bun.sh/install.ps1 | iex"]);
+    });
+
+    test("token not in the config file (OS keychain) is an error", async () => {
+      const [status] = await cloudflare.check({}, withCf(fakeExec(whoami(loggedIn)).exec, { [FILE]: JSON.stringify({ scopes: [] }) }));
+      expect(status).toMatchObject({ state: "error", message: expect.stringContaining("CLOUDFLARE_AUTH_USE_KEYRING=false cf auth login") });
+    });
+
+    test("accountId must be among the login's accounts", async () => {
+      const [status] = await cloudflare.check({ accountId: "f".repeat(32) }, withCf(fakeExec(whoami(loggedIn)).exec));
+      expect(status).toMatchObject({ state: "mismatch", fix: ["cf", "auth", "login", "--force"] });
+    });
+
+    test("zones are checked with the OAuth token", async () => {
+      const { http, requests } = api({ "/zones?name=acme.dev": [200, [{ id: "z1" }]], "/zones/z1/dns_records": [403, "Authentication error"] });
+      const statuses = await cloudflare.check({ zones: ["acme.dev"] }, withCf(fakeExec(whoami(loggedIn)).exec, file, http));
+      expect(statuses[1]).toMatchObject({ label: "zones", state: "denied", message: "acme.dev: can't read DNS" });
+      expect(requests.every((r) => r.auth === "Bearer oauth")).toBe(true);
+    });
+  });
+
+  test("CLOUDFLARE_API_TOKEN set: verified instead, and passed on as is (or from tokenEnv)", async () => {
+    expect(await cloudflare.env!({}, { ...ctx(fakeExec({}).exec), env: { CLOUDFLARE_API_TOKEN: "ci" } })).toEqual({ CLOUDFLARE_API_TOKEN: "ci" });
+    expect(await cloudflare.env!({ tokenEnv: "CF_DNS" }, { ...ctx(fakeExec({}).exec), env: { CF_DNS: "dns" } })).toEqual({ CLOUDFLARE_API_TOKEN: "dns" });
+  });
+
+  test("valid user token, sent as a bearer token", async () => {
+    const { http, requests } = api(active);
+    expect(await run({}, http)).toEqual([{ provider: "cloudflare", label: "token", state: "ok", identity: "CLOUDFLARE_API_TOKEN" }]);
+    expect(requests).toEqual([{ path: "/user/tokens/verify", auth: "Bearer tok" }]);
+  });
+
+  test("tokenEnv picks another variable", async () => {
+    const { http, requests } = api(active);
+    const [status] = await run({ tokenEnv: "CF_DNS_TOKEN" }, http, { CF_DNS_TOKEN: "dns" });
+    expect(status).toMatchObject({ state: "ok", identity: "CF_DNS_TOKEN" });
+    expect(requests[0]!.auth).toBe("Bearer dns");
+  });
+
+  test("invalid or expired token", async () => {
+    const [invalid] = await run({}, api({ "/user/tokens/verify": [401, "Invalid API Token"] }).http);
+    expect(invalid).toMatchObject({ state: "unauthenticated", message: "CLOUDFLARE_API_TOKEN is invalid: Invalid API Token (for an account-owned token, set accountId)" });
+    const [expired] = await run({}, api({ "/user/tokens/verify": [200, { status: "expired" }] }).http);
+    expect(expired).toMatchObject({ state: "unauthenticated", message: "CLOUDFLARE_API_TOKEN is expired" });
+  });
+
+  test("account-owned token verifies at the account", async () => {
+    const { http, requests } = api({ "/user/tokens/verify": [401, "Invalid API Token"], [`/accounts/${ACCOUNT}/tokens/verify`]: [200, { status: "active" }] });
+    expect(await run({ accountId: ACCOUNT }, http)).toMatchObject([{ state: "ok" }]);
+    expect(requests.map((r) => r.path)).toEqual(["/user/tokens/verify", `/accounts/${ACCOUNT}/tokens/verify`]);
+  });
+
+  test("network failure is an error", async () => {
+    const [status] = await run({}, async () => ({ status: 0, body: "fetch failed" }));
+    expect(status).toMatchObject({ state: "error", message: "fetch failed" });
+  });
+
+  test("zones: visible with readable DNS, else denied", async () => {
+    const { http, requests } = api({
+      ...active,
+      "/zones?name=acme.dev": [200, [{ id: "z1" }]],
+      "/zones?name=other.dev": [200, []],
+      "/zones?name=nodns.dev": [200, [{ id: "z3" }]],
+      "/zones/z1/dns_records": [200, []],
+      "/zones/z3/dns_records": [403, "Authentication error"],
+    });
+    expect(await run({ zones: ["acme.dev"] }, http)).toEqual([
+      { provider: "cloudflare", label: "token", state: "ok", identity: "CLOUDFLARE_API_TOKEN" },
+      { provider: "cloudflare", label: "zones", state: "ok", identity: "acme.dev" },
+    ]);
+    expect(requests.map((r) => r.path)).toContain("/zones/z1/dns_records?per_page=1");
+    const [, zones] = await run({ zones: ["acme.dev", "other.dev", "nodns.dev"] }, http);
+    expect(zones).toMatchObject({ state: "denied", message: "other.dev: no access, nodns.dev: can't read DNS" });
+  });
+
+  test("zones lookup narrowed to accountId", async () => {
+    const { http, requests } = api({ ...active, "/zones?name=acme.dev": [200, [{ id: "z1" }]], "/zones/z1/dns_records": [200, []] });
+    await run({ accountId: ACCOUNT, zones: ["acme.dev"] }, http);
+    expect(requests.map((r) => r.path)).toContain(`/zones?name=acme.dev&account.id=${ACCOUNT}`);
+  });
+});
+
+describe("wrangler", () => {
+  const whoami = (accounts = [{ id: "acc1", name: "Acme" }], extra: object = {}) => ({
+    "wrangler whoami --json": { stdout: JSON.stringify({ loggedIn: true, authType: "OAuth Token", email: "me@acme.dev", accounts, ...extra }) },
+  });
+  const run = (target: object, exec: ReturnType<typeof fakeExec>["exec"], env: Record<string, string> = {}) => wrangler.check(target, { ...ctx(exec), env });
+
+  test("OAuth login ok, identity is the email", async () => {
+    expect(await run({}, fakeExec(whoami()).exec)).toEqual([{ provider: "wrangler", label: "login", state: "ok", identity: "me@acme.dev" }]);
+  });
+
+  test("logged out offers wrangler login", async () => {
+    const { exec } = fakeExec({ "wrangler whoami --json": { code: 1, stdout: '{"loggedIn":false}' } });
+    expect(await run({}, exec)).toEqual([{ provider: "wrangler", label: "login", state: "unauthenticated", message: "not logged in", fix: ["wrangler", "login"] }]);
+  });
+
+  test("account by id or name; otherwise mismatch", async () => {
+    const { exec } = fakeExec(whoami());
+    expect(await run({ account: "acc1" }, exec)).toMatchObject([{ state: "ok" }]);
+    expect(await run({ account: "Acme" }, exec)).toMatchObject([{ state: "ok" }]);
+    expect(await run({ account: "Other" }, exec)).toMatchObject([{ state: "mismatch", message: "no access to account Other (has: Acme)", fix: ["wrangler", "login"] }]);
+  });
+
+  test("a bad CLOUDFLARE_API_TOKEN has no fix (wrangler login refuses while it's set)", async () => {
+    const stderr = "\n\x1b[31m✘ \x1b[41;31m[\x1b[41;97mERROR\x1b[41;31m]\x1b[0m A request to the Cloudflare API (/user/tokens/verify) failed.\n\n  Invalid request headers [code: 6003]\n\n  If you think this is a bug, please open an issue\n";
+    const { exec } = fakeExec({ "wrangler whoami --json": { code: 1, stderr } });
+    expect(await run({}, exec, { CLOUDFLARE_API_TOKEN: "bad" })).toEqual([
+      {
+        provider: "wrangler",
+        label: "token",
+        state: "unauthenticated",
+        message: "CLOUDFLARE_API_TOKEN: A request to the Cloudflare API (/user/tokens/verify) failed: Invalid request headers [code: 6003]",
+        fix: undefined,
+      },
+    ]);
+  });
+
+  test("account API token: identity is the account", async () => {
+    const { exec } = fakeExec(whoami([{ id: "acc1", name: "Acme" }], { authType: "Account API Token", email: undefined }));
+    expect(await run({}, exec, { CLOUDFLARE_API_TOKEN: "t" })).toEqual([{ provider: "wrangler", label: "token", state: "ok", identity: "Acme" }]);
   });
 });

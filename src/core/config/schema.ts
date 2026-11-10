@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AwsTarget, AzTarget, Config, GcloudTarget } from "./types";
+import type { AwsTarget, AzTarget, CloudflareTarget, Config, GcloudTarget, WranglerTarget } from "./types";
 
 // Normalised to an array before validation so errors point at the exact field (a union would only say "Invalid input").
 const oneOrMany = <T extends z.ZodType>(schema: T) =>
@@ -38,7 +38,17 @@ const az: z.ZodType<AzTarget> = z
   })
   .refine((t) => !(t.permissionScope && !t.actions && !t.dataActions), { message: "permissionScope needs actions or dataActions", path: ["permissionScope"] });
 
-export const providerIds = ["gcloud", "aws", "az"] as const;
+const cloudflare: z.ZodType<CloudflareTarget> = z.strictObject({
+  tokenEnv: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/, "must be an environment variable name").optional(),
+  accountId: z.string().regex(/^[0-9a-f]{32}$/, "must be a 32-character Cloudflare account ID").optional(),
+  zones: z.array(z.string().regex(/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i, 'must be a domain name like "acme.dev"')).nonempty().optional(),
+});
+
+const wrangler: z.ZodType<WranglerTarget> = z.strictObject({
+  account: z.string().optional(),
+});
+
+export const providerIds = ["gcloud", "aws", "az", "cloudflare", "wrangler"] as const;
 
 export const configSchema: z.ZodType<Config> = z
   .strictObject({
@@ -65,6 +75,8 @@ export const configSchema: z.ZodType<Config> = z
     gcloud: oneOrMany(gcloud).optional().describe("Google Cloud target(s)"),
     aws: oneOrMany(aws).optional().describe("AWS target(s)"),
     az: oneOrMany(az).optional().describe("Azure target(s)"),
+    cloudflare: oneOrMany(cloudflare).optional().describe("Cloudflare API token target(s), e.g. for OpenTofu"),
+    wrangler: oneOrMany(wrangler).optional().describe("Wrangler login target(s)"),
   })
   .meta({ title: "cloudsesame config" });
 
