@@ -62,7 +62,7 @@ eval "$(cloudsesame env)"         # or: cloudsesame env infra
 tofu plan
 ```
 
-Runs like [`auth`](#auth-default), then prints `export` lines for the credentials other tools can't find themselves: `CLOUDFLARE_API_TOKEN` from the [`cf` login](./providers#cloudflare). Only the exports go to stdout. Status, prompts and logins go to stderr, so `eval` never runs anything else. If something isn't ready, it prints nothing and exits with the usual [code](#exit-codes).
+Runs like [`auth`](#auth-default), then prints `export` lines for the credentials other tools can't find themselves: `CLOUDFLARE_API_TOKEN` from the [`cf` login](./providers/cloudflare). Only the exports go to stdout. Status, prompts and logins go to stderr, so `eval` never runs anything else. If something isn't ready, it prints nothing and exits with the usual [code](#exit-codes).
 
 The syntax follows `$SHELL` (PowerShell on Windows), or set it with `--shell sh|fish|pwsh`. The token lasts about an hour: run it again when it expires. See [Shell integration](./shell).
 
@@ -78,7 +78,7 @@ cloudsesame predev -- vite
 - cloudsesame's own output goes to stderr, so the command's stdout stays clean (`cloudsesame infra -- tofu output -json | jq`).
 - Put a command or group before `--` (`cloudsesame auth -- …`, `cloudsesame infra -- …`): when Bun runs a script, it drops a `--` that comes right after the script name.
 - It runs only when the cloudsesame command would exit 0 (so after `predev` skips, too). Otherwise it doesn't run and cloudsesame exits with its own code.
-- It gets the terminal and your environment, plus credentials that tools can't find on their own: `CLOUDFLARE_API_TOKEN` from the [`cf` login](./providers#cloudflare). Other providers' tools already read their CLI's login (gcloud ADC, AWS profiles, az).
+- It gets the terminal and your environment, plus credentials that tools can't find on their own: `CLOUDFLARE_API_TOKEN` from the [`cf` login](./providers/cloudflare). Other providers' tools already read their CLI's login (gcloud ADC, AWS profiles, az).
 - cloudsesame exits with the command's exit code (127 if it can't be started).
 - Works with `auth`, `predev` and `check`; not with `init` or `--json`.
 

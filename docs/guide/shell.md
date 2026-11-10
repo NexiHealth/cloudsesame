@@ -1,6 +1,6 @@
 # Shell integration
 
-Some tools can't read a CLI's login on their own. OpenTofu's Cloudflare provider is one: it only reads `CLOUDFLARE_API_TOKEN`, so it can't use your [`cf` login](./providers#cloudflare). cloudsesame bridges that gap by handing the login over as that variable, in one of two ways:
+Some tools can't read a CLI's login on their own. OpenTofu's Cloudflare provider is one: it only reads `CLOUDFLARE_API_TOKEN`, so it can't use your [`cf` login](./providers/cloudflare). cloudsesame bridges that gap by handing the login over as that variable, in one of two ways:
 
 | | You type | Token |
 | --- | --- | --- |

@@ -149,7 +149,7 @@ The first time, cloudsesame offers `cf auth login` (a browser login; `cf` runs t
 
 Prefer typing `tofu plan` yourself? Set the token in your shell with `eval "$(cloudsesame env infra)"`, then run `tofu` directly (rerun it when the token expires, after about an hour). See [Shell integration](./shell).
 
-`wrangler login` doesn't cover this: OpenTofu doesn't read it, and it has no DNS access (see [Providers](./providers#cloudflare-wrangler-or-cloudflare)). If the repo also deploys Workers, check both: `groups: { infra: ["wrangler", "cloudflare"] }`.
+`wrangler login` doesn't cover this: OpenTofu doesn't read it, and it has no DNS access (see [Providers](./providers/cloudflare#wrangler-or-cloudflare)). If the repo also deploys Workers, check both: `groups: { infra: ["wrangler", "cloudflare"] }`.
 
 In CI, set `CLOUDFLARE_API_TOKEN` to an [API token](https://dash.cloudflare.com/profile/api-tokens) (the **Edit zone DNS** template): cloudsesame verifies it instead of the `cf` login and passes it through.
 

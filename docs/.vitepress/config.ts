@@ -55,8 +55,18 @@ export default defineConfig({
           { text: "Configuration", link: "/guide/configuration" },
           { text: "Commands", link: "/guide/commands" },
           { text: "Shell integration", link: "/guide/shell" },
-          { text: "Providers", link: "/guide/providers" },
           { text: "CI and AI agents", link: "/guide/agents" },
+        ],
+      },
+      {
+        text: "Providers",
+        items: [
+          { text: "Overview", link: "/guide/providers" },
+          { text: "gcloud", link: "/guide/providers/gcloud" },
+          { text: "aws", link: "/guide/providers/aws" },
+          { text: "az", link: "/guide/providers/az" },
+          { text: "wrangler", link: "/guide/providers/wrangler" },
+          { text: "cloudflare", link: "/guide/providers/cloudflare" },
         ],
       },
       {
