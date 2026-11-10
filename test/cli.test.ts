@@ -133,24 +133,12 @@ describe.skipIf(process.platform === "win32")("check e2e", () => {
     }
   });
 
-  test("-- without a config (and no providers named) just runs the command", async () => {
-    const bare = mkdtempSync(join(tmpdir(), "sesame-bare-"));
-    writeFileSync(join(bare, ".git"), "");
-    const marker = join(bare, "ran");
-    const { code, err } = await capture(["--plain", "--", "sh", "-c", `touch ${marker}; exit 7`], bare);
-    expect(code).toBe(7);
-    expect(err).toBe("");
-    expect(existsSync(marker)).toBe(true);
-    rmSync(bare, { recursive: true, force: true });
-  });
 
   test("-- usage errors", async () => {
     expect((await capture(["check", "--"], dir)).err).toContain("Missing command after --");
     expect((await capture(["check", "--json", "--", "true"], dir)).code).toBe(2);
     expect((await capture(["init", "--", "true"], dir)).err).toContain("init doesn't run a command");
     expect((await capture(["env", "--json"], dir)).err).toContain("no --json");
-    expect((await capture(["shell-init"], dir)).err).toContain("shell-init needs a shell");
-    expect((await capture(["shell-init", "zsh", "rm -rf"], dir)).err).toContain("Not a command name");
   });
 
   test("json", async () => {

@@ -123,10 +123,9 @@ For OpenTofu/Terraform. You log in once with Cloudflare's [`cf` CLI](https://www
 
 **Running `cf`:** you don't need to install it. cloudsesame uses `cf` if it's on your `PATH`, else runs it with Bun (`bun x cf`): Bun on your `PATH` or in `~/.bun/bin`, or, for the [standalone binaries](./installation) (Homebrew, Scoop, Chocolatey), the binary itself, which is built with Bun. Only when none of those exist (an npm install without Bun) is the line `missing`, with Bun's official installer as the fix (`curl -fsSL https://bun.sh/install | bash`, or `irm bun.sh/install.ps1 | iex` on Windows). After it, cloudsesame goes straight to `cf auth login`.
 
-**Handing the login to OpenTofu** works in one of three ways. Pick one in [Shell integration](./shell):
-- `cloudsesame infra -- tofu plan`
-- plain `tofu plan` with [`shell-init`](./shell#shell-functions)
-- `eval "$(cloudsesame env)"`, then run `tofu` separately
+**Handing the login to OpenTofu** works in one of two ways (see [Shell integration](./shell)):
+- `eval "$(cloudsesame env)"` exports `CLOUDFLARE_API_TOKEN` into your shell, then run `tofu` separately
+- `cloudsesame infra -- tofu plan` runs it with the token set
 
 The login's access token lasts an hour, and each check refreshes it, so you only see the browser again when `cf`'s refresh token expires. A single command that runs longer than an hour would fail partway.
 

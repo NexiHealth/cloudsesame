@@ -1,7 +1,7 @@
 import type { Command } from "../command";
 import { flowCommand } from "./flow";
 import { init } from "./init";
-import { envCommand, shellInitCommand } from "./shell";
+import { envCommand } from "./shell";
 
 export const commands: Record<string, Command> = {
   auth: flowCommand("auth", {
@@ -18,7 +18,6 @@ export const commands: Record<string, Command> = {
   }),
   init,
   env: envCommand,
-  "shell-init": shellInitCommand,
 };
 
 export const DEFAULT_COMMAND = "auth";

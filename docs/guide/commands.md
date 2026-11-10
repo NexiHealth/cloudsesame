@@ -11,9 +11,8 @@ cloudsesame [command] [providers|groups...] [options] [-- <command...>]
 | [`check`](#check) | Report connectivity and login status. Never prompts. |
 | [`init`](#init) | Write a starter `sesame.config.ts`. |
 | [`env`](#env) | Like `auth`, then print `export` lines for tools that can't read the logins. |
-| [`shell-init`](#shell-init) | Print shell functions that run `tofu`/`terraform` through cloudsesame. |
 
-All commands except `init` and `shell-init` take providers (`gcloud`, `aws`, `az`, `wrangler`, `cloudflare`) or [groups](./configuration#groups) to narrow what's checked. Without them, everything configured is checked (or every installed CLI, with no config; `cloudflare` has no CLI, so name it or configure it).
+All commands except `init` take providers (`gcloud`, `aws`, `az`, `wrangler`, `cloudflare`) or [groups](./configuration#groups) to narrow what's checked. Without them, everything configured is checked (or every installed CLI, with no config; `cloudflare` has no CLI, so name it or configure it).
 
 ## `auth` (default)
 
@@ -67,14 +66,6 @@ Runs like [`auth`](#auth-default), then prints `export` lines for the credential
 
 The syntax follows `$SHELL` (PowerShell on Windows), or set it with `--shell sh|fish|pwsh`. The token lasts about an hour: run it again when it expires. See [Shell integration](./shell).
 
-## `shell-init`
-
-```sh
-eval "$(cloudsesame shell-init zsh)"     # in ~/.zshrc
-```
-
-Prints `tofu` and `terraform` functions for `bash`, `zsh`, `fish` or `pwsh`. Their cloud subcommands (`plan`, `apply`, `init`, …) run as `cloudsesame auth -- tofu …`, and everything else runs directly. Name other commands to wrap them instead: `cloudsesame shell-init zsh tofu terragrunt`. See [Shell integration](./shell#shell-functions).
-
 ## Run a command
 
 Put a command after `--` to run it once everything is ready:
@@ -85,7 +76,6 @@ cloudsesame predev -- vite
 ```
 
 - cloudsesame's own output goes to stderr, so the command's stdout stays clean (`cloudsesame infra -- tofu output -json | jq`).
-- Without a `sesame.config.*` and with no providers named, there's nothing to check, so the command just runs.
 - Put a command or group before `--` (`cloudsesame auth -- …`, `cloudsesame infra -- …`): when Bun runs a script, it drops a `--` that comes right after the script name.
 - It runs only when the cloudsesame command would exit 0 (so after `predev` skips, too). Otherwise it doesn't run and cloudsesame exits with its own code.
 - It gets the terminal and your environment, plus credentials that tools can't find on their own: `CLOUDFLARE_API_TOKEN` from the [`cf` login](./providers#cloudflare). Other providers' tools already read their CLI's login (gcloud ADC, AWS profiles, az).

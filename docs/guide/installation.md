@@ -58,13 +58,14 @@ This is optional: the config's `import type` is erased at runtime, so the projec
 
 ## Shell integration
 
-Optional: to let `tofu plan` (and `terraform`) check your clouds first and get the Cloudflare token, add one line to your shell's startup file:
+For OpenTofu with Cloudflare, export the token from your `cf` login into the current shell, then run `tofu` as usual:
 
 ```sh
-eval "$(cloudsesame shell-init zsh)"     # ~/.zshrc; also bash, fish, pwsh
+eval "$(cloudsesame env)"
+tofu plan
 ```
 
-See [Shell integration](./shell) for fish, PowerShell, and the alternatives (`cloudsesame infra -- tofu plan`, `eval "$(cloudsesame env)"`).
+See [Shell integration](./shell) for fish, PowerShell, and running `tofu` through cloudsesame instead.
 
 ## Check it works
 

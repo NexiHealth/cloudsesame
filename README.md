@@ -74,8 +74,7 @@ No config? cloudsesame checks every cloud CLI you have installed, with default s
 | `cloudsesame init` | Generate `sesame.config.ts` (or `--json` for `sesame.config.json`) |
 | `cloudsesame aws` · `cloudsesame infra` | Only check some providers, or a [group](#groups) from your config |
 | `cloudsesame infra -- tofu plan` | Check, then run the command with credentials tools can't find themselves (the Cloudflare token) |
-| `eval "$(cloudsesame env)"` | Check, then export those credentials into your shell |
-| `eval "$(cloudsesame shell-init zsh)"` | In `~/.zshrc`: plain `tofu plan` checks first. See [Shell integration](https://nexihealth.github.io/cloudsesame/guide/shell) |
+| `eval "$(cloudsesame env)"` | Check, then export those credentials into your shell, so `tofu plan` works on its own. See [Shell integration](https://nexihealth.github.io/cloudsesame/guide/shell) |
 
 ## Configure
 
@@ -189,7 +188,7 @@ export default {
 | `aws` | | `{ profile?, accountId? }` or a list. `profile` defaults to `AWS_PROFILE`, then `default` |
 | `az` | | `{ tenant?, subscription?, actions?, dataActions?, permissionScope? }` or a list |
 | `wrangler` | | `{ account? }` or a list. Checks `wrangler login` (or the token wrangler uses) |
-| `cloudflare` | | `{ tokenEnv?, accountId?, zones? }` or a list. Checks the `cf` login (run through Bun) and gives it to OpenTofu: `cloudsesame infra -- tofu plan`, `eval "$(cloudsesame env)"`, or [`shell-init`](https://nexihealth.github.io/cloudsesame/guide/shell) |
+| `cloudflare` | | `{ tokenEnv?, accountId?, zones? }` or a list. Checks the `cf` login (run through Bun) and gives it to OpenTofu: `eval "$(cloudsesame env)"` or `cloudsesame infra -- tofu plan` ([Shell integration](https://nexihealth.github.io/cloudsesame/guide/shell)) |
 | <a id="groups"></a>`groups` | | Named sets of providers: `{ infra: ["gcloud", "aws"] }` → `cloudsesame infra` |
 | `offline` | `"prompt"` | `predev` when offline: `prompt` · `continue` · `fail` |
 | `unauthenticated` | `"prompt"` | When a provider isn't ready: `prompt` · `login` · `skip` · `fail` |
