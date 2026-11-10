@@ -373,7 +373,8 @@ describe("cloudflare", () => {
       expect(status!.fix).toEqual(["bun", "x", "cf", "auth", "login"]);
       const home = join(homedir(), ".bun", "bin", "bun");
       expect(cfCommand((c) => (c === home ? home : undefined), {})).toEqual([home, "x", "cf"]);
-      expect(cfCommand((c) => (c === "/opt/bun/bin/bun" ? c : undefined), { BUN_INSTALL: "/opt/bun" })).toEqual(["/opt/bun/bin/bun", "x", "cf"]);
+      const custom = join("/opt/bun", "bin", "bun");
+      expect(cfCommand((c) => (c === custom ? c : undefined), { BUN_INSTALL: "/opt/bun" })).toEqual([custom, "x", "cf"]);
     });
 
     test("neither cf nor Bun: offers Bun's installer", async () => {

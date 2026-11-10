@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { detectShell, formatExports, shellInit } from "../src/commands/shell";
@@ -39,7 +39,7 @@ describe.skipIf(process.platform === "win32")("shell-init functions", () => {
     const args = shell === "pwsh" ? ["-NoProfile", "-Command", script] : ["-c", script];
     const res = spawnSync(shell, args, { encoding: "utf8", env: { ...process.env, PATH: `${dir}:${process.env.PATH}` } });
     if (res.status !== 0) throw new Error(res.stderr);
-    return spawnSync("cat", [log], { encoding: "utf8" }).stdout.trim().split("\n");
+    return readFileSync(log, "utf8").trim().split("\n");
   };
   const calls = ["tofu plan -out x", "tofu -chdir=infra apply", "tofu fmt", "tofu version", "tofu"];
   const expected = ["cloudsesame auth -- tofu plan -out x", "cloudsesame auth -- tofu -chdir=infra apply", "tofu fmt", "tofu version", "tofu"];
