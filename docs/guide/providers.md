@@ -1,6 +1,18 @@
 # Providers
 
-cloudsesame checks clouds through their own CLIs: `gcloud`, `aws`, `az`, and Cloudflare's `wrangler` and `cf` (as `cloudflare`). It only reads state and tests tokens. It never logs in on its own: logins happen when you choose **Log in**, or with `--yes`.
+cloudsesame checks clouds through their own CLIs. It only reads state and tests tokens. It never logs in on its own: logins happen when you choose **Log in**, or with `--yes`.
+
+| Provider | Checks | Use it for |
+| --- | --- | --- |
+| [`gcloud`](./providers/gcloud) | gcloud login, Application Default Credentials, project, quota project, IAM permissions | Google Cloud SDKs, `gcloud`, OpenTofu/Terraform on GCP |
+| [`aws`](./providers/aws) | One AWS profile per target, and its account | AWS SDKs, the `aws` CLI, OpenTofu/Terraform on AWS |
+| [`az`](./providers/az) | az login, tenant, subscription, RBAC permissions | Azure SDKs, `az`, OpenTofu/Terraform on Azure |
+| [`wrangler`](./providers/wrangler) | wrangler's login or token, and its account | Cloudflare Workers (`wrangler deploy`, `wrangler dev`) |
+| [`cloudflare`](./providers/cloudflare) | Cloudflare's `cf` CLI login (or an API token), and zones | OpenTofu/Terraform on Cloudflare (DNS and more) |
+
+Each provider takes one target or a list of targets in the [config](./configuration#providers). Every target is checked separately: two AWS profiles are two checks, each with its own login.
+
+## States
 
 Every check ends in one of these states:
 
@@ -10,131 +22,12 @@ Every check ends in one of these states:
 | `unauthenticated` | <span class="cs-sym err">✖&#xFE0E;</span> | Not logged in, or the login expired. |
 | `mismatch` | <span class="cs-sym warn">!</span> | Logged in, but to the wrong account, project, tenant or subscription. |
 | `denied` | <span class="cs-sym err">✖&#xFE0E;</span> | Logged in, but missing [permissions](#permissions) you asked for. Logging in again doesn't help, so there's no fix to run: ask an admin for the role. |
-| `missing` | <span class="cs-sym err">✖&#xFE0E;</span> | The CLI isn't on your `PATH`. The message links to its install page. (`cloudflare` instead offers to install Bun, see [cloudflare](#cloudflare).) |
+| `missing` | <span class="cs-sym err">✖&#xFE0E;</span> | The CLI isn't on your `PATH`. The message links to its install page. (`cloudflare` instead offers to install Bun, see [cloudflare](./providers/cloudflare#running-cf).) |
 | `error` | <span class="cs-sym err">✖&#xFE0E;</span> | Something else went wrong, like an unknown AWS profile (fixed with `aws configure sso`). |
 
 Anything other than `ok` makes the target not ready (exit code 4 if it isn't resolved). When there's a command that fixes it, cloudsesame shows it (`→ …`) and offers to run it. After running a fix, it checks that target again, so a target with several problems is fixed one step at a time.
 
 Every check has a [timeout](./configuration#connectivity) (20 s by default), and all providers are checked in parallel.
-
-## gcloud
-
-```ts
-gcloud: { credentials: "both", account: "me@acme.dev", project: "acme-dev", quotaProject: "acme-billing" }
-```
-
-Up to five checks, each shown as its own line:
-
-| Check | Runs when | How | Fix |
-| --- | --- | --- | --- |
-| **user** | `credentials` is `"user"` or `"both"` | `gcloud auth print-access-token`. With `account`, the active account (`gcloud config get-value account`) must match. | `gcloud auth login [account] [--update-adc]` |
-| **adc** | `credentials` is `"adc"` or `"both"` | `gcloud auth application-default print-access-token` | `gcloud auth application-default login` |
-| **quota project** | `quotaProject` is set and ADC works | Reads `quota_project_id` from the ADC file | `gcloud auth application-default set-quota-project <quotaProject>` |
-| **project** | `project` is set | `gcloud config get-value project` | `gcloud config set project <project>` |
-| **permissions** | `permissions` is set and the login works | [`projects.testIamPermissions`](#permissions) on `project` | None (`denied`) |
-
-- With `credentials: "both"`, the user login fix adds `--update-adc`, so one browser login refreshes both credentials.
-- The quota project is read from the ADC file: `GOOGLE_APPLICATION_CREDENTIALS` if set, otherwise `application_default_credentials.json` in gcloud's config directory (`CLOUDSDK_CONFIG`, or `~/.config/gcloud`, or `%APPDATA%\gcloud` on Windows). It's only checked for user credentials (`authorized_user`), not service accounts. It's checked once ADC works, so a broken ADC login is fixed first. If the file can't be read, that's an `error`.
-- gcloud's long "Reauthentication required" errors are shortened to `reauthentication required`.
-
-## aws
-
-```ts
-aws: [{ profile: "staging", accountId: "111111111111" }, { profile: "prod", accountId: "222222222222" }]
-```
-
-One check per profile, labeled with the profile name (`profile`, else `AWS_PROFILE`, else `default`):
-
-1. `aws sts get-caller-identity --profile <profile>` proves the credentials work. On success, the identity shown is the caller ARN.
-2. With `accountId`, the account must match. A mismatch has no automatic fix: switch to a profile for the right account.
-3. If the profile doesn't exist, that's an `error`, fixed by creating it: `aws configure sso --profile <profile>` asks for your IAM Identity Center details, then signs you in.
-4. Otherwise it's not logged in, and cloudsesame picks the login the profile is configured for:
-
-| Profile has | Fix |
-| --- | --- |
-| `sso_session` or `sso_start_url` | `aws sso login --profile <profile>` |
-| `login_session` (console login) | `aws login --profile <profile>` |
-| Neither | No fix. The message points you to `aws configure sso`. |
-
-Without `profile` in the config, the commands run without `--profile`, so the AWS CLI's own default applies.
-
-## az
-
-```ts
-az: { tenant: "00000000-0000-0000-0000-000000000000", subscription: "Contoso Dev" }
-```
-
-One check per target, labeled with the subscription, else the tenant, else `account`:
-
-| Problem | How it's found | Fix |
-| --- | --- | --- |
-| Not logged in or expired | `az account show`, plus `az account get-access-token [--tenant <tenant>]` to prove the refresh token still works | `az login [--tenant <tenant>]` |
-| Wrong tenant | Active account's `tenantId` differs from `tenant` | `az login --tenant <tenant>` |
-| Wrong subscription | Active subscription's ID and name both differ from `subscription` | `az account set --subscription <subscription>` |
-
-The identity shown is the signed-in user.
-
-With `actions` or `dataActions`, a second line, **permissions**, checks them once the account, tenant and subscription are right. See [Permissions](#permissions).
-
-## Cloudflare: `wrangler` or `cloudflare`?
-
-Cloudflare's tools use different logins:
-
-| You run | It authenticates with | Check with |
-| --- | --- | --- |
-| `wrangler deploy`, `wrangler dev`, … | `wrangler login` (OAuth), or `CLOUDFLARE_API_TOKEN` when set | [`wrangler`](#wrangler) |
-| OpenTofu/Terraform (`cloudflare/cloudflare` provider) | `CLOUDFLARE_API_TOKEN` only (or the legacy `CLOUDFLARE_API_KEY` + `CLOUDFLARE_EMAIL`, or `CLOUDFLARE_API_USER_SERVICE_KEY`) | [`cloudflare`](#cloudflare), with [`--`](./commands#run-a-command) |
-
-The OpenTofu provider never reads a CLI login. And wrangler's login couldn't manage DNS anyway: wrangler only requests Workers-related OAuth scopes (`zone:read`, but no DNS records). [`cloudflare`](#cloudflare) logs in with Cloudflare's [`cf` CLI](https://www.npmjs.com/package/cf) instead, which gets every scope, and hands that login to OpenTofu as `CLOUDFLARE_API_TOKEN`. A repo that deploys Workers and manages DNS checks both.
-
-## wrangler
-
-```ts
-wrangler: { account: "Acme" }
-```
-
-One check, `wrangler whoami --json`, which shows what wrangler will deploy with:
-
-| Problem | Fix |
-| --- | --- |
-| Not logged in, or the OAuth login expired and can't be refreshed | `wrangler login` |
-| Logged in, but `account` (ID or name) isn't among the accounts the login can reach (`mismatch`) | `wrangler login` (as someone with access) |
-| `CLOUDFLARE_API_TOKEN` is set but invalid | None: wrangler prefers the token and `wrangler login` refuses to run while it's set. Fix or unset the variable. |
-
-The line is labeled `login` for the OAuth login, or `token` when `CLOUDFLARE_API_TOKEN` (or `CLOUDFLARE_API_KEY`) is set. The identity shown is your email, or the account for account-owned tokens. wrangler is often a project dependency rather than a global install: it's found when cloudsesame runs from a package script (`node_modules/.bin` is on the `PATH`), or install it globally.
-
-## cloudflare
-
-```ts
-cloudflare: { zones: ["acme.dev"] }
-```
-
-```sh
-cloudsesame cloudflare -- tofu plan
-```
-
-For OpenTofu/Terraform. You log in once with Cloudflare's [`cf` CLI](https://www.npmjs.com/package/cf) (`cf auth login`, in the browser), and cloudsesame runs your command with that login as `CLOUDFLARE_API_TOKEN`. You never create, copy or export a token.
-
-| Check | Runs when | How | Fix |
-| --- | --- | --- | --- |
-| **login** | `CLOUDFLARE_API_TOKEN` isn't set | `cf auth whoami`, which also refreshes the login. With `accountId`, the login must reach that account. | `cf auth login` (`--force` when it's expired or the wrong account) |
-| **token** | `CLOUDFLARE_API_TOKEN` (or `tokenEnv`) is set, e.g. in CI | [`/user/tokens/verify`](https://developers.cloudflare.com/api/resources/user/subresources/tokens/methods/verify/) must say it's `active`. With `accountId`, account-owned tokens are verified at `/accounts/<accountId>/tokens/verify`. | None: fix or unset the variable |
-| **zones** | `zones` is set and the login or token works | Each zone must be visible, with readable DNS records. Otherwise `denied`, e.g. `acme.dev: no access` or `acme.dev: can't read DNS`. | None (`denied`) |
-
-**Running `cf`:** you don't need to install it. cloudsesame uses `cf` if it's on your `PATH`, else runs it with Bun (`bun x cf`): Bun on your `PATH` or in `~/.bun/bin`, or, for the [standalone binaries](./installation) (Homebrew, Scoop, Chocolatey), the binary itself, which is built with Bun. Only when none of those exist (an npm install without Bun) is the line `missing`, with Bun's official installer as the fix (`curl -fsSL https://bun.sh/install | bash`, or `irm bun.sh/install.ps1 | iex` on Windows). After it, cloudsesame goes straight to `cf auth login`.
-
-**Handing the login to OpenTofu** works in one of two ways (see [Shell integration](./shell)):
-- `eval "$(cloudsesame env)"` exports `CLOUDFLARE_API_TOKEN` into your shell, then run `tofu` separately
-- `cloudsesame infra -- tofu plan` runs it with the token set
-
-The login's access token lasts an hour, and each check refreshes it, so you only see the browser again when `cf`'s refresh token expires. A single command that runs longer than an hour would fail partway.
-
-- cf has no command that prints its token, so cloudsesame reads it from the file `cf auth whoami` reports: `cloudflare/config/<profile>.json` in `~/Library/Preferences` (macOS), `~/.config` (Linux) or `%APPDATA%\xdg.config` (Windows), or `XDG_CONFIG_HOME` when set. Named `cf` profiles (`cf auth activate`) work too. If `cf` keeps the login in the OS keychain (`CLOUDFLARE_AUTH_USE_KEYRING`), it can't be read: log in with `CLOUDFLARE_AUTH_USE_KEYRING=false cf auth login`.
-- `cf` is a technical preview and needs Node 22 or newer when run with Node (it's run with Bun here).
-- In CI, set `CLOUDFLARE_API_TOKEN` to an [API token](https://dash.cloudflare.com/profile/api-tokens) (the **Edit zone DNS** template for DNS records): it's verified instead and passed through unchanged. With `tokenEnv: "CF_DNS_TOKEN"`, the token is read from that variable and passed on as `CLOUDFLARE_API_TOKEN`.
-- Edit permission can't be tested without changing something, so **zones** proves read access only.
-- With no config, `cloudflare` isn't checked unless you name it (`cloudsesame cloudflare`).
-- Token and zone checks are direct HTTPS calls (see the proxy note below).
 
 ## Permissions
 
@@ -144,38 +37,9 @@ Being logged in doesn't mean you can call the API. List the permissions your cod
 ✖ gcloud permissions  acme-dev: missing aiplatform.endpoints.predict
 ```
 
-### gcloud: `permissions`
-
-```ts
-gcloud: { credentials: "adc", project: "acme-dev", permissions: ["aiplatform.endpoints.predict", "speech.recognizers.recognize"] }
-```
-
-- Calls [`projects.testIamPermissions`](https://cloud.google.com/resource-manager/reference/rest/v1/projects/testIamPermissions) on `project`, which returns the subset you hold. Anyone can ask about themselves; no extra role is needed.
-- Uses the ADC token when `credentials` is `"adc"` or `"both"` (what SDKs use), else the user login's token.
-- Needs `project`. No access to the project at all is `denied` too (`no access to project …`, followed by Google's reason).
-- Only project-level IAM: it doesn't see whether the API is enabled, quota, organization policies, or roles granted on a single resource (like a bucket).
-- This is a direct HTTPS call, not a gcloud command. Bun and the standalone binaries honor `HTTPS_PROXY`; Node's built-in `fetch` does not (unless `NODE_USE_ENV_PROXY=1` on Node 24+).
-
-Permission names are listed in Google's [permissions reference](https://cloud.google.com/iam/docs/permissions-reference), or with `gcloud iam roles describe roles/<role>`.
-
-### az: `actions`, `dataActions` and `permissionScope`
-
-```ts
-az: {
-  subscription: "Contoso AI",
-  dataActions: ["Microsoft.CognitiveServices/accounts/OpenAI/deployments/chat/completions/action"],
-  permissionScope: "/subscriptions/…/resourceGroups/ai/providers/Microsoft.CognitiveServices/accounts/contoso-openai",
-}
-```
-
-- Reads [`Microsoft.Authorization/permissions`](https://learn.microsoft.com/rest/api/authorization/permissions) at `permissionScope` through `az rest` (so it uses az's login, cloud and proxy settings), and matches your list against each role's actions, with wildcards and exclusions (`notActions`).
-- `actions` are control-plane operations (manage resources); `dataActions` are data-plane operations (call the model, read blobs). They're separate because Contributor allows every action (`*`) but no data actions.
-- `permissionScope` defaults to the active subscription. Roles assigned lower down (on a resource group or resource) only count when you check at that scope, so point it at the resource your code calls.
-- Deny assignments aren't taken into account.
-
-### aws
-
-Not supported yet. AWS's equivalent (`iam simulate-principal-policy`) needs IAM read permissions that most SSO users don't have, so it would usually report "can't tell".
+- **gcloud:** [`permissions`](./providers/gcloud#permissions), checked on the project.
+- **az:** [`actions` and `dataActions`](./providers/az#permissions), checked at a scope you choose.
+- **aws:** [not supported yet](./providers/aws#permissions).
 
 ## Connectivity
 

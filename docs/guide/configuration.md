@@ -43,48 +43,17 @@ The `$schema` gives you validation and autocompletion in editors that support JS
 
 ## Providers
 
-Each provider takes one target or a list of targets. Every target is checked separately: two AWS profiles are two checks, each with its own login. See [Providers](./providers) for exactly what is checked.
+Each provider takes one target or a list of targets. Every target is checked separately: two AWS profiles are two checks, each with its own login.
 
-### `gcloud`
+| Provider | Options |
+| --- | --- |
+| [`gcloud`](./providers/gcloud#options) | `credentials`, `account`, `project`, `quotaProject`, `permissions` |
+| [`aws`](./providers/aws#options) | `profile`, `accountId` |
+| [`az`](./providers/az#options) | `tenant`, `subscription`, `actions`, `dataActions`, `permissionScope` |
+| [`wrangler`](./providers/wrangler#options) | `account` |
+| [`cloudflare`](./providers/cloudflare#options) | `tokenEnv`, `accountId`, `zones` |
 
-| Field | Default | Description |
-| --- | --- | --- |
-| `credentials` | `"both"` | `"user"`: the gcloud CLI login (`gcloud auth login`), for scripts that call `gcloud`. `"adc"`: Application Default Credentials, used by Google SDKs and OpenTofu/Terraform (`gcloud auth application-default login`). `"both"`: both of these. |
-| `account` | | Expected active account (email). |
-| `project` | | Expected active project ID. |
-| `quotaProject` | | Expected quota project of user ADC: the project billed for API quota when SDKs and OpenTofu/Terraform call Google APIs as you. Fixed with `gcloud auth application-default set-quota-project`. Needs `credentials` `"adc"` or `"both"`. Not checked for service account credentials. |
-| `permissions` | | IAM permissions you must hold on `project`, e.g. `["aiplatform.endpoints.predict"]`. Missing ones are `denied`. Needs `project`. See [Permissions](./providers#permissions). |
-
-### `aws`
-
-| Field | Default | Description |
-| --- | --- | --- |
-| `profile` | `AWS_PROFILE`, then `default` | Profile from `~/.aws/config`. |
-| `accountId` | | Expected 12-digit AWS account ID. |
-
-### `az`
-
-| Field | Default | Description |
-| --- | --- | --- |
-| `tenant` | | Expected tenant ID. Also passed to `az login --tenant`. |
-| `subscription` | | Expected subscription, by ID or name. |
-| `actions` | | RBAC actions you must be allowed, e.g. `["Microsoft.Storage/storageAccounts/read"]`. See [Permissions](./providers#permissions). |
-| `dataActions` | | RBAC data actions you must be allowed, e.g. `["Microsoft.CognitiveServices/accounts/OpenAI/deployments/chat/completions/action"]`. |
-| `permissionScope` | the subscription | Resource ID to check `actions` and `dataActions` at, e.g. a resource group or resource. |
-
-### `wrangler`
-
-| Field | Default | Description |
-| --- | --- | --- |
-| `account` | | Account (ID or name) the login must reach, e.g. the `account_id` in your wrangler config. See [Providers](./providers#wrangler). |
-
-### `cloudflare`
-
-| Field | Default | Description |
-| --- | --- | --- |
-| `tokenEnv` | `"CLOUDFLARE_API_TOKEN"` | Environment variable with an API token to use instead of the `cf` login, e.g. in CI. Passed to commands after `--` as `CLOUDFLARE_API_TOKEN`. |
-| `accountId` | | 32-character account ID. The `cf` login must reach it; needed to verify account-owned tokens; narrows the `zones` lookup. |
-| `zones` | | Zones (domain names) the token must reach with readable DNS records, e.g. `["acme.dev"]`. See [Providers](./providers#cloudflare). |
+Each provider's page lists what its options do, what's checked, and its quirks.
 
 ## Groups
 
