@@ -5,7 +5,7 @@ title: Open sesame for your clouds
 hero:
   name: cloudsesame
   text: Open sesame for your clouds.
-  tagline: Checks that you're online and logged in to gcloud, aws and az before you work, and logs you in when you're not.
+  tagline: Checks that you're online and logged in to gcloud, aws, az and Cloudflare (wrangler and API tokens) before you work, and logs you in when you're not.
   image:
     src: /vault.png
     alt: A vault door in a brick wall, swung open on a golden glow

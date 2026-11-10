@@ -6,12 +6,14 @@ import { defaultDeps } from "../core/deps";
 import { formatCommand } from "../core/exec";
 import { ExitCode } from "../core/exit";
 import { detectConfig, renderConfig, SKILL_SOURCE, skillInstallCommand } from "../core/init";
+import { UsageError } from "../core/targets";
 import { PlainUi } from "../ui/plain";
 
 export const init: Command = {
   usage: "init",
   description: "Create sesame.config.ts from your installed CLIs (--json for sesame.config.json)",
-  async plain({ cwd, flags, interactive }) {
+  async plain({ cwd, flags, interactive, command }) {
+    if (command) throw new UsageError("init doesn't run a command after --");
     const existing = CONFIG_FILES.map((f) => join(cwd, f)).find((f) => existsSync(f));
     if (existing && !flags.force) {
       console.error(`✖ ${existing} already exists (use --force to overwrite)`);

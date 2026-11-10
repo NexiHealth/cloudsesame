@@ -20,6 +20,7 @@ export interface Status {
 
 export interface CheckContext {
   exec: Exec;
+  which: Deps["which"];
   http: Deps["http"];
   readFile: Deps["readFile"];
   env: Deps["env"];
@@ -28,9 +29,16 @@ export interface CheckContext {
 
 export interface Provider<T> {
   id: ProviderId;
-  cli: string;
+  /** CLI that must be on PATH. Providers checked purely over HTTP have none. */
+  cli?: string;
+  /** Where to install the CLI (or, without one, how to get credentials). */
   install: string;
   check(target: T, ctx: CheckContext): Promise<Status[]>;
+  /**
+   * Environment for a command run after the checks (`cloudsesame infra -- tofu plan`), e.g. a fresh token for tools that
+   * can't read the provider's login themselves. Called only when the target is ready.
+   */
+  env?(target: T, ctx: CheckContext): Promise<Record<string, string>>;
 }
 
 /** First meaningful line of a CLI error, without the "ERROR: (gcloud.x.y)" style prefixes. */

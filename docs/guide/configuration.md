@@ -72,6 +72,20 @@ Each provider takes one target or a list of targets. Every target is checked sep
 | `dataActions` | | RBAC data actions you must be allowed, e.g. `["Microsoft.CognitiveServices/accounts/OpenAI/deployments/chat/completions/action"]`. |
 | `permissionScope` | the subscription | Resource ID to check `actions` and `dataActions` at, e.g. a resource group or resource. |
 
+### `wrangler`
+
+| Field | Default | Description |
+| --- | --- | --- |
+| `account` | | Account (ID or name) the login must reach, e.g. the `account_id` in your wrangler config. See [Providers](./providers#wrangler). |
+
+### `cloudflare`
+
+| Field | Default | Description |
+| --- | --- | --- |
+| `tokenEnv` | `"CLOUDFLARE_API_TOKEN"` | Environment variable with an API token to use instead of the `cf` login, e.g. in CI. Passed to commands after `--` as `CLOUDFLARE_API_TOKEN`. |
+| `accountId` | | 32-character account ID. The `cf` login must reach it; needed to verify account-owned tokens; narrows the `zones` lookup. |
+| `zones` | | Zones (domain names) the token must reach with readable DNS records, e.g. `["acme.dev"]`. See [Providers](./providers#cloudflare). |
+
 ## Groups
 
 Name the sets of providers your workflows need, then pass the group name as an argument:

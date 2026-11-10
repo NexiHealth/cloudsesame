@@ -54,6 +54,7 @@ export default defineConfig({
         items: [
           { text: "Configuration", link: "/guide/configuration" },
           { text: "Commands", link: "/guide/commands" },
+          { text: "Shell integration", link: "/guide/shell" },
           { text: "Providers", link: "/guide/providers" },
           { text: "CI and AI agents", link: "/guide/agents" },
         ],
@@ -64,6 +65,8 @@ export default defineConfig({
         items: [
           { text: "Web app on Google Cloud", link: "/guide/recipes#web-app-on-google-cloud" },
           { text: "Infra repo: GCP + AWS", link: "/guide/recipes#infra-repo-opentofu-on-gcp-and-aws" },
+          { text: "Cloudflare Workers", link: "/guide/recipes#cloudflare-workers" },
+          { text: "DNS on Cloudflare", link: "/guide/recipes#dns-on-cloudflare-with-opentofu" },
           { text: "Azure", link: "/guide/recipes#azure" },
           { text: "Monorepo", link: "/guide/recipes#monorepo" },
           { text: "Never block anyone", link: "/guide/recipes#never-block-anyone" },

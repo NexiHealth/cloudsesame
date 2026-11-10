@@ -1,7 +1,7 @@
 # Commands
 
 ```
-cloudsesame [command] [providers|groups...] [options]
+cloudsesame [command] [providers|groups...] [options] [-- <command...>]
 ```
 
 | Command | What it does |
@@ -10,8 +10,10 @@ cloudsesame [command] [providers|groups...] [options]
 | [`predev`](#predev) | Connectivity check, then auth. Skipping is allowed. |
 | [`check`](#check) | Report connectivity and login status. Never prompts. |
 | [`init`](#init) | Write a starter `sesame.config.ts`. |
+| [`env`](#env) | Like `auth`, then print `export` lines for tools that can't read the logins. |
+| [`shell-init`](#shell-init) | Print shell functions that run `tofu`/`terraform` through cloudsesame. |
 
-All commands except `init` take providers (`gcloud`, `aws`, `az`) or [groups](./configuration#groups) to narrow what's checked. Without them, everything configured is checked (or every installed CLI, with no config).
+All commands except `init` and `shell-init` take providers (`gcloud`, `aws`, `az`, `wrangler`, `cloudflare`) or [groups](./configuration#groups) to narrow what's checked. Without them, everything configured is checked (or every installed CLI, with no config; `cloudflare` has no CLI, so name it or configure it).
 
 ## `auth` (default)
 
@@ -54,6 +56,53 @@ cloudsesame check --json   # machine-readable, see CI and AI agents
 
 Writes `sesame.config.ts` (or `sesame.config.json` with `--json`) in the current directory, based on the installed CLIs and their current project, profile and subscription. `--force` overwrites an existing config. In a terminal, it then offers to install the [Agent Skill](./agents#agent-skill) with `bunx skills add NexiHealth/cloudsesame`.
 
+## `env`
+
+```sh
+eval "$(cloudsesame env)"         # or: cloudsesame env infra
+tofu plan
+```
+
+Runs like [`auth`](#auth-default), then prints `export` lines for the credentials other tools can't find themselves: `CLOUDFLARE_API_TOKEN` from the [`cf` login](./providers#cloudflare). Only the exports go to stdout. Status, prompts and logins go to stderr, so `eval` never runs anything else. If something isn't ready, it prints nothing and exits with the usual [code](#exit-codes).
+
+The syntax follows `$SHELL` (PowerShell on Windows), or set it with `--shell sh|fish|pwsh`. The token lasts about an hour: run it again when it expires. See [Shell integration](./shell).
+
+## `shell-init`
+
+```sh
+eval "$(cloudsesame shell-init zsh)"     # in ~/.zshrc
+```
+
+Prints `tofu` and `terraform` functions for `bash`, `zsh`, `fish` or `pwsh`. Their cloud subcommands (`plan`, `apply`, `init`, …) run as `cloudsesame auth -- tofu …`, and everything else runs directly. Name other commands to wrap them instead: `cloudsesame shell-init zsh tofu terragrunt`. See [Shell integration](./shell#shell-functions).
+
+## Run a command
+
+Put a command after `--` to run it once everything is ready:
+
+```sh
+cloudsesame infra -- tofu plan
+cloudsesame predev -- vite
+```
+
+- cloudsesame's own output goes to stderr, so the command's stdout stays clean (`cloudsesame infra -- tofu output -json | jq`).
+- Without a `sesame.config.*` and with no providers named, there's nothing to check, so the command just runs.
+- Put a command or group before `--` (`cloudsesame auth -- …`, `cloudsesame infra -- …`): when Bun runs a script, it drops a `--` that comes right after the script name.
+- It runs only when the cloudsesame command would exit 0 (so after `predev` skips, too). Otherwise it doesn't run and cloudsesame exits with its own code.
+- It gets the terminal and your environment, plus credentials that tools can't find on their own: `CLOUDFLARE_API_TOKEN` from the [`cf` login](./providers#cloudflare). Other providers' tools already read their CLI's login (gcloud ADC, AWS profiles, az).
+- cloudsesame exits with the command's exit code (127 if it can't be started).
+- Works with `auth`, `predev` and `check`; not with `init` or `--json`.
+
+In `package.json`:
+
+```json
+{
+  "scripts": {
+    "plan": "cloudsesame infra -- tofu plan",
+    "apply": "cloudsesame infra -- tofu apply"
+  }
+}
+```
+
 ## Options
 
 | Option | Description |
@@ -68,6 +117,7 @@ Writes `sesame.config.ts` (or `sesame.config.json` with `--json`) in the current
 | `-c`, `--config <file>` | Config file. Default: nearest `sesame.config.*` up to the git root |
 | `--json` | JSON output; implies `--no-input`. For `init`, write `sesame.config.json` |
 | `--force` | `init`: overwrite an existing config |
+| `--shell <shell>` | `env`: `sh` \| `fish` \| `pwsh`. Default: from `$SHELL`, PowerShell on Windows |
 | `--plain` | Plain text output, no colors or interactive UI. Also `CLOUDSESAME_PLAIN=1`, and automatic on Node < 22 |
 | `-h`, `--help` | Show help |
 | `-v`, `--version` | Show version |
@@ -93,3 +143,5 @@ When there's no terminal (CI, agents, piped input) or with `--no-input`, a promp
 | 4 | A provider isn't ready: not logged in, wrong account/project, missing permissions, or CLI missing |
 | 5 | Stopped by the user |
 | 130 | Interrupted (Ctrl-C) |
+
+With [`-- <command>`](#run-a-command), once ready, the exit code is the command's (127 if it can't be started).

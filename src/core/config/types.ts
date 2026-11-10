@@ -1,7 +1,7 @@
 // Public config types. Shipped as the package's type declarations (`import type { Config } from "cloudsesame"`),
 // so this file must stay types-only. Validation lives in ./schema.ts.
 
-export type ProviderId = "gcloud" | "aws" | "az";
+export type ProviderId = "gcloud" | "aws" | "az" | "cloudflare" | "wrangler";
 export type OfflinePolicy = "prompt" | "continue" | "fail";
 export type UnauthenticatedPolicy = "prompt" | "login" | "skip" | "fail";
 export type NoTerminalPolicy = "fail" | "skip";
@@ -65,6 +65,38 @@ export interface AzTarget {
   permissionScope?: string;
 }
 
+/**
+ * Cloudflare for OpenTofu/Terraform. Checks the `cf` CLI's login (run with Bun when cf isn't installed), which
+ * commands after `--` get as `CLOUDFLARE_API_TOKEN` (`cloudsesame cloudflare -- tofu plan`). When an API token is
+ * already set (CI), that token is verified and passed on instead.
+ */
+export interface CloudflareTarget {
+  /**
+   * Environment variable with an API token to use instead of the `cf` login, e.g. in CI. Passed to commands after
+   * `--` as `CLOUDFLARE_API_TOKEN`, the variable the OpenTofu/Terraform Cloudflare provider reads.
+   * @default "CLOUDFLARE_API_TOKEN"
+   */
+  tokenEnv?: string;
+  /**
+   * Account ID (32 hex characters). The `cf` login must reach it; also needed to verify account-owned API tokens,
+   * and narrows the `zones` lookup to this account.
+   */
+  accountId?: string;
+  /**
+   * Zones (domain names) that must be reachable, e.g. `["acme.dev"]`. Each must be visible with readable DNS
+   * records. Edit permission can't be tested without writing, so it isn't checked.
+   */
+  zones?: string[];
+}
+
+export interface WranglerTarget {
+  /**
+   * Account (ID or name) the login must reach, e.g. the `account_id` in your wrangler config.
+   * Checked against the accounts `wrangler whoami` lists.
+   */
+  account?: string;
+}
+
 export interface Config {
   $schema?: string;
   /**
@@ -104,4 +136,6 @@ export interface Config {
   gcloud?: GcloudTarget | GcloudTarget[];
   aws?: AwsTarget | AwsTarget[];
   az?: AzTarget | AzTarget[];
+  cloudflare?: CloudflareTarget | CloudflareTarget[];
+  wrangler?: WranglerTarget | WranglerTarget[];
 }

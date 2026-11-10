@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, spyOn, test } from "bun:test";
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import pkg from "../package.json" with { type: "json" };
@@ -83,6 +83,74 @@ describe.skipIf(process.platform === "win32")("check e2e", () => {
   test("predev --strict --skip fails", async () => {
     gcloud(1);
     expect((await capture(["predev", "--skip", "--strict", "--plain"], dir)).code).toBe(4);
+  });
+
+  test("-- runs the command once ready and exits with its code; not ready, it doesn't run", async () => {
+    const marker = join(dir, "ran");
+    gcloud(0);
+    expect((await capture(["check", "--plain", "--", "sh", "-c", `touch ${marker}; exit 3`], dir)).code).toBe(3);
+    expect(existsSync(marker)).toBe(true);
+    rmSync(marker);
+    gcloud(1);
+    expect((await capture(["check", "--plain", "--", "sh", "-c", `touch ${marker}`], dir)).code).toBe(4);
+    expect(existsSync(marker)).toBe(false);
+  });
+
+  test("-- passes the cf login's token as CLOUDFLARE_API_TOKEN", async () => {
+    const creds = join(dir, "cf-default.json");
+    writeFileSync(creds, JSON.stringify({ oauth_token: "oauth-from-cf", refresh_token: "r", expiration_time: "2099-01-01T00:00:00Z" }));
+    const whoami = { authenticated: true, authSource: `OAuth token from ${creds}`, tokenValid: true, email: "me@acme.dev", accounts: [] };
+    writeFileSync(join(dir, "cf"), `#!/bin/sh\necho '${JSON.stringify(whoami)}'\n`);
+    chmodSync(join(dir, "cf"), 0o755);
+    writeFileSync(join(dir, "cf.config.json"), JSON.stringify({ onlineCheck: false, cloudflare: {} }));
+    const out = join(dir, "token");
+    const env = { ...process.env };
+    delete process.env.CLOUDFLARE_API_TOKEN;
+    try {
+      const result = await capture(["-c", "cf.config.json", "--plain", "--", "sh", "-c", `printf %s "$CLOUDFLARE_API_TOKEN" > ${out}`], dir);
+      // With a command after --, our output goes to stderr: stdout is the command's.
+      expect(result).toMatchObject({ code: 0, out: "", err: "✔ cloudflare login  me@acme.dev" });
+      expect(readFileSync(out, "utf8")).toBe("oauth-from-cf");
+    } finally {
+      process.env = env;
+    }
+  });
+
+  test("env prints exports on stdout, status on stderr; nothing when not ready", async () => {
+    const env = { ...process.env };
+    delete process.env.CLOUDFLARE_API_TOKEN;
+    try {
+      const ok = await capture(["env", "-c", "cf.config.json", "--plain", "--shell", "sh"], dir);
+      expect(ok).toMatchObject({ code: 0, out: "export CLOUDFLARE_API_TOKEN='oauth-from-cf'", err: "✔ cloudflare login  me@acme.dev" });
+      const fish = await capture(["env", "-c", "cf.config.json", "--plain", "--shell", "fish"], dir);
+      expect(fish.out).toBe("set -gx CLOUDFLARE_API_TOKEN 'oauth-from-cf'");
+      writeFileSync(join(dir, "cf"), `#!/bin/sh\necho '{"authenticated":false}'\n`);
+      const notReady = await capture(["env", "-c", "cf.config.json", "--plain"], dir);
+      expect(notReady.code).toBe(4);
+      expect(notReady.out).toBe("");
+    } finally {
+      process.env = env;
+    }
+  });
+
+  test("-- without a config (and no providers named) just runs the command", async () => {
+    const bare = mkdtempSync(join(tmpdir(), "sesame-bare-"));
+    writeFileSync(join(bare, ".git"), "");
+    const marker = join(bare, "ran");
+    const { code, err } = await capture(["--plain", "--", "sh", "-c", `touch ${marker}; exit 7`], bare);
+    expect(code).toBe(7);
+    expect(err).toBe("");
+    expect(existsSync(marker)).toBe(true);
+    rmSync(bare, { recursive: true, force: true });
+  });
+
+  test("-- usage errors", async () => {
+    expect((await capture(["check", "--"], dir)).err).toContain("Missing command after --");
+    expect((await capture(["check", "--json", "--", "true"], dir)).code).toBe(2);
+    expect((await capture(["init", "--", "true"], dir)).err).toContain("init doesn't run a command");
+    expect((await capture(["env", "--json"], dir)).err).toContain("no --json");
+    expect((await capture(["shell-init"], dir)).err).toContain("shell-init needs a shell");
+    expect((await capture(["shell-init", "zsh", "rm -rf"], dir)).err).toContain("Not a command name");
   });
 
   test("json", async () => {

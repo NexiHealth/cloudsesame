@@ -14,7 +14,7 @@ const toArray = <T>(value: T | T[] | undefined): T[] => (value === undefined ? [
 
 /**
  * Targets to check. `names` are provider ids or group names; empty means everything configured,
- * or, with nothing configured, every provider whose CLI is installed.
+ * or, with nothing configured, every provider whose CLI is installed (CLI-less providers must be configured or named).
  */
 export function resolveTargets(config: Config, names: string[], which = defaultWhich): Target[] {
   let ids: ProviderId[];
@@ -28,7 +28,10 @@ export function resolveTargets(config: Config, names: string[], which = defaultW
     });
   } else {
     ids = providerIds.filter((id) => config[id] !== undefined);
-    if (ids.length === 0) ids = providerIds.filter((id) => which(providers[id].cli));
+    if (ids.length === 0) ids = providerIds.filter((id) => {
+      const cli = providers[id].cli;
+      return !!cli && !!which(cli);
+    });
   }
   return [...new Set(ids)].flatMap((provider) => {
     const targets = toArray<object>(config[provider]);
@@ -38,8 +41,16 @@ export function resolveTargets(config: Config, names: string[], which = defaultW
 
 /** Human label for a target, e.g. "aws nexihealth-admin". */
 export function targetLabel({ provider, target }: Target): string {
-  const t = target as { profile?: string; subscription?: string; tenant?: string; project?: string };
+  const t = target as { profile?: string; subscription?: string; tenant?: string; project?: string; zones?: string[]; account?: string };
   const detail =
-    provider === "aws" ? (t.profile ?? process.env.AWS_PROFILE ?? "default") : provider === "az" ? (t.subscription ?? t.tenant) : t.project;
+    provider === "aws"
+      ? (t.profile ?? process.env.AWS_PROFILE ?? "default")
+      : provider === "az"
+        ? (t.subscription ?? t.tenant)
+        : provider === "cloudflare"
+          ? t.zones?.join(", ")
+          : provider === "wrangler"
+            ? t.account
+            : t.project;
   return detail ? `${provider} ${detail}` : provider;
 }
