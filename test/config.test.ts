@@ -69,6 +69,15 @@ describe("config", () => {
     expect(ok.config.cloudflare[0].zones).toEqual(["acme.dev"]);
   });
 
+  test("sentry fields are validated", async () => {
+    const load = async (json: object) => loadConfig({ cwd: project(`sentry-${Math.random()}`, { ".git/HEAD": "", "sesame.config.json": JSON.stringify(json) }) }).catch((e) => e);
+    expect((await load({ sentry: { url: "sentry.acme.dev" } })).message).toContain("sentry[0].url");
+    expect((await load({ sentry: { scopes: ["write"] } })).message).toContain("sentry[0].scopes[0]");
+    expect((await load({ sentry: { organization: "Acme Inc" } })).message).toContain("sentry[0].organization");
+    const ok = await load({ sentry: { url: "https://sentry.acme.dev", organization: "acme", scopes: ["project:write"] }, groups: { infra: ["sentry"] } });
+    expect(ok.config.sentry[0].organization).toBe("acme");
+  });
+
   test("no config is an empty config", async () => {
     expect(await loadConfig({ cwd: project("none", { ".git/HEAD": "" }) })).toEqual({ config: {} });
   });

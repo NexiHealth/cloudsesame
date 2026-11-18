@@ -28,7 +28,7 @@ async function env(ctx: Context, ink: boolean): Promise<number> {
   if (checked.result.code !== ExitCode.Ok) return checked.result.code;
   const vars = await providedEnv(checked);
   if (Object.keys(vars).length === 0) {
-    console.error("Nothing to export: none of the checked providers need it (only cloudflare's cf login does).");
+    console.error("Nothing to export: none of the checked providers need it (only the cloudflare and sentry logins do).");
   } else {
     console.log(formatExports(vars, ctx.flags.shell ?? detectShell()));
   }

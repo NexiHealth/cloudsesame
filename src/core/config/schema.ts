@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AwsTarget, AzTarget, CloudflareTarget, Config, GcloudTarget, WranglerTarget } from "./types";
+import type { AwsTarget, AzTarget, CloudflareTarget, Config, GcloudTarget, SentryTarget, WranglerTarget } from "./types";
 
 // Normalised to an array before validation so errors point at the exact field (a union would only say "Invalid input").
 const oneOrMany = <T extends z.ZodType>(schema: T) =>
@@ -48,7 +48,14 @@ const wrangler: z.ZodType<WranglerTarget> = z.strictObject({
   account: z.string().optional(),
 });
 
-export const providerIds = ["gcloud", "aws", "az", "cloudflare", "wrangler"] as const;
+const sentry: z.ZodType<SentryTarget> = z.strictObject({
+  tokenEnv: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/, "must be an environment variable name").optional(),
+  url: z.string().regex(/^https?:\/\/[^/\s]+(\/\S*)?$/, 'must be a URL like "https://sentry.acme.dev"').optional(),
+  organization: z.string().regex(/^[a-z0-9_-]+$/i, 'must be an organization slug like "acme"').optional(),
+  scopes: z.array(z.string().regex(/^[a-z_]+:[a-z_]+$/, 'must be a Sentry scope like "project:write"')).nonempty().optional(),
+});
+
+export const providerIds = ["gcloud", "aws", "az", "cloudflare", "wrangler", "sentry"] as const;
 
 export const configSchema: z.ZodType<Config> = z
   .strictObject({
@@ -77,6 +84,7 @@ export const configSchema: z.ZodType<Config> = z
     az: oneOrMany(az).optional().describe("Azure target(s)"),
     cloudflare: oneOrMany(cloudflare).optional().describe("Cloudflare API token target(s), e.g. for OpenTofu"),
     wrangler: oneOrMany(wrangler).optional().describe("Wrangler login target(s)"),
+    sentry: oneOrMany(sentry).optional().describe("Sentry auth token target(s), e.g. for OpenTofu"),
   })
   .meta({ title: "cloudsesame config" });
 

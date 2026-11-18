@@ -5,6 +5,7 @@ import { aws } from "../src/core/providers/aws";
 import type { Http } from "../src/core/http";
 import { az, isAllowed } from "../src/core/providers/az";
 import { cfCommand, cloudflare, installBun } from "../src/core/providers/cloudflare";
+import { missingScopes, orgTokenUrl, parseIni, sentry, sentryCliCommand } from "../src/core/providers/sentry";
 import { wrangler } from "../src/core/providers/wrangler";
 import { adcPath, gcloud } from "../src/core/providers/gcloud";
 import { ctx, fakeExec } from "./helpers";
@@ -502,5 +503,110 @@ describe("wrangler", () => {
   test("account API token: identity is the account", async () => {
     const { exec } = fakeExec(whoami([{ id: "acc1", name: "Acme" }], { authType: "Account API Token", email: undefined }));
     expect(await run({}, exec, { CLOUDFLARE_API_TOKEN: "t" })).toEqual([{ provider: "wrangler", label: "token", state: "ok", identity: "Acme" }]);
+  });
+});
+
+describe("sentry", () => {
+  const RC = join(homedir(), ".sentryclirc");
+  const rc = (token: string, url?: string) => ({ [RC]: `[auth]\ntoken=${token}\n${url ? `\n[defaults]\nurl=${url}\n` : ""}` });
+  /** Fake Sentry API: `routes` maps a path (after /api/0) to [status, body]. */
+  function api(routes: Record<string, [number, unknown]>, host = "https://sentry.io") {
+    const requests: Array<{ url: string; auth?: string }> = [];
+    const http: Http = async (url, init) => {
+      requests.push({ url, auth: init.headers?.authorization });
+      const route = url.startsWith(`${host}/api/0`) ? routes[url.slice(`${host}/api/0`.length)] : undefined;
+      const [status, body] = route ?? [404, { detail: "The requested resource does not exist" }];
+      return { status, body: JSON.stringify(body) };
+    };
+    return { http, requests };
+  }
+  const me = { "/": [200, { version: "0", auth: { scopes: ["org:read", "project:admin", "team:write"] }, user: { email: "me@acme.dev", username: "me" } }] } as Record<string, [number, unknown]>;
+  const withCli = (c: string) => (c === "sentry-cli" ? "/bin/sentry-cli" : undefined);
+  const run = (target: Parameters<typeof sentry.check>[0], { files = {}, env = {}, http = api(me).http, which = withCli }: { files?: Record<string, string>; env?: Record<string, string>; http?: Http; which?: (c: string) => string | undefined } = {}) => {
+    const c = { ...ctx(fakeExec({}).exec, files, http), which, env };
+    return { check: () => sentry.check(target, c), env: () => sentry.env!(target, c) };
+  };
+
+  test("sentry-cli login: reads ~/.sentryclirc, verifies the token, hands it on as SENTRY_AUTH_TOKEN", async () => {
+    const { http, requests } = api(me);
+    const r = run({}, { files: rc("sntryu_abc"), http });
+    expect(await r.check()).toEqual([{ provider: "sentry", label: "login", state: "ok", identity: "me@acme.dev" }]);
+    expect(requests).toEqual([{ url: "https://sentry.io/api/0/", auth: "Bearer sntryu_abc" }]);
+    expect(await r.env()).toEqual({ SENTRY_AUTH_TOKEN: "sntryu_abc" });
+  });
+
+  test("not logged in offers sentry-cli login (through Bun without sentry-cli); neither offers Bun", async () => {
+    expect(await run({}).check()).toEqual([{ provider: "sentry", label: "login", state: "unauthenticated", message: "not logged in", fix: ["sentry-cli", "login"] }]);
+    const [viaBun] = await run({}, { which: (c) => (c === "bun" ? "/bin/bun" : undefined) }).check();
+    expect(viaBun!.fix).toEqual(["bun", "x", "@sentry/cli", "login"]);
+    expect(sentryCliCommand(() => undefined, {}, "/nowhere")).toBeUndefined();
+    const [none] = await run({}, { which: () => undefined }).check();
+    expect(none).toMatchObject({ state: "missing", fix: installBun() });
+    expect(await run({}).env()).toEqual({});
+  });
+
+  test("revoked login token offers a new login; a bad env token has no fix", async () => {
+    const revoked = api({ "/": [401, { detail: "Invalid token" }] }).http;
+    expect((await run({}, { files: rc("old"), http: revoked }).check())[0]).toMatchObject({
+      state: "unauthenticated",
+      message: "sentry-cli's token is invalid or revoked: Invalid token",
+      fix: ["sentry-cli", "login"],
+    });
+    const [env] = await run({}, { env: { SENTRY_AUTH_TOKEN: "bad" }, http: revoked }).check();
+    expect(env).toEqual({ provider: "sentry", label: "token", state: "unauthenticated", message: "SENTRY_AUTH_TOKEN is invalid or revoked: Invalid token", fix: undefined });
+  });
+
+  test("an env token wins over the login; tokenEnv picks the variable and it's passed on as SENTRY_AUTH_TOKEN", async () => {
+    const { http, requests } = api(me);
+    const r = run({ tokenEnv: "SENTRY_TF_TOKEN" }, { files: rc("login"), env: { SENTRY_TF_TOKEN: "ci" }, http });
+    expect(await r.check()).toMatchObject([{ label: "token", state: "ok" }]);
+    expect(requests[0]!.auth).toBe("Bearer ci");
+    expect(await r.env()).toEqual({ SENTRY_AUTH_TOKEN: "ci" });
+  });
+
+  test("self-hosted: URL from the config, SENTRY_URL or .sentryclirc, passed on as SENTRY_BASE_URL", async () => {
+    const host = "https://sentry.acme.dev";
+    const fromRc = run({}, { files: rc("t", `${host}/`), http: api(me, host).http });
+    expect(await fromRc.check()).toMatchObject([{ state: "ok", identity: "me@acme.dev (sentry.acme.dev)" }]);
+    expect(await fromRc.env()).toEqual({ SENTRY_AUTH_TOKEN: "t", SENTRY_BASE_URL: `${host}/api/` });
+    expect(await run({}, { files: rc("t"), env: { SENTRY_URL: host }, http: api(me, host).http }).check()).toMatchObject([{ state: "ok" }]);
+    expect(await run({ url: `${host}/api/` }, { files: rc("t"), http: api(me, host).http }).check()).toMatchObject([{ state: "ok" }]);
+    const [loggedOut] = await run({ url: host }).check();
+    expect(loggedOut!.fix).toEqual(["sentry-cli", "--url", host, "login"]);
+  });
+
+  test("organization tokens carry their URL and have no user", async () => {
+    const payload = Buffer.from(JSON.stringify({ iat: 1, url: "https://sentry.acme.dev", region_url: "https://sentry.acme.dev", org: "acme" })).toString("base64");
+    const token = `sntrys_${payload}_secret`;
+    expect(orgTokenUrl(token)).toBe("https://sentry.acme.dev");
+    const http = api({ "/": [200, { auth: { scopes: ["org:ci"] }, user: null }] }, "https://sentry.acme.dev").http;
+    expect(await run({}, { env: { SENTRY_AUTH_TOKEN: token }, http }).check()).toMatchObject([{ state: "ok", identity: "organization token (sentry.acme.dev)" }]);
+  });
+
+  test("organization must be reachable", async () => {
+    const http = api({ ...me, "/organizations/acme/": [200, { slug: "acme" }] }).http;
+    expect(await run({ organization: "acme" }, { files: rc("t"), http }).check()).toMatchObject([{ state: "ok" }]);
+    const [other] = await run({ organization: "other" }, { files: rc("t"), http }).check();
+    expect(other).toMatchObject({ state: "mismatch", message: "no access to organization other", fix: ["sentry-cli", "login"] });
+  });
+
+  test("scopes: higher levels count; missing ones are denied", async () => {
+    const http = api(me).http;
+    expect(await run({ scopes: ["project:write", "team:read", "org:read"] }, { files: rc("t"), http }).check()).toEqual([
+      { provider: "sentry", label: "login", state: "ok", identity: "me@acme.dev" },
+      { provider: "sentry", label: "scopes", state: "ok", identity: "project:write, team:read, org:read" },
+    ]);
+    const [, scopes] = await run({ scopes: ["project:write", "alerts:write", "org:write"] }, { files: rc("t"), http }).check();
+    expect(scopes).toEqual({ provider: "sentry", label: "scopes", state: "denied", message: "sentry-cli's token lacks alerts:write, org:write" });
+    expect(missingScopes(["org:admin"], ["org:integrations", "org:read"])).toEqual([]);
+  });
+
+  test("network failure is an error", async () => {
+    const [status] = await run({}, { files: rc("t"), http: async () => ({ status: 0, body: "fetch failed" }) }).check();
+    expect(status).toMatchObject({ state: "error", message: "https://sentry.io: fetch failed" });
+  });
+
+  test("parseIni", () => {
+    expect(parseIni("; comment\n[auth]\ntoken = a=b\n\n[defaults]\nurl=https://x\norg=acme\n")).toEqual({ "": {}, auth: { token: "a=b" }, defaults: { url: "https://x", org: "acme" } });
   });
 });

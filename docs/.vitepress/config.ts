@@ -67,6 +67,7 @@ export default defineConfig({
           { text: "az", link: "/guide/providers/az" },
           { text: "wrangler", link: "/guide/providers/wrangler" },
           { text: "cloudflare", link: "/guide/providers/cloudflare" },
+          { text: "sentry", link: "/guide/providers/sentry" },
         ],
       },
       {
@@ -77,6 +78,7 @@ export default defineConfig({
           { text: "Infra repo: GCP + AWS", link: "/guide/recipes#infra-repo-opentofu-on-gcp-and-aws" },
           { text: "Cloudflare Workers", link: "/guide/recipes#cloudflare-workers" },
           { text: "DNS on Cloudflare", link: "/guide/recipes#dns-on-cloudflare-with-opentofu" },
+          { text: "Sentry with OpenTofu", link: "/guide/recipes#sentry-with-opentofu" },
           { text: "Azure", link: "/guide/recipes#azure" },
           { text: "Monorepo", link: "/guide/recipes#monorepo" },
           { text: "Never block anyone", link: "/guide/recipes#never-block-anyone" },

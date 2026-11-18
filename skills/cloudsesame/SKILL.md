@@ -5,7 +5,7 @@ description: Set up and use cloudsesame, the CLI that checks connectivity and gc
 
 # cloudsesame
 
-`cloudsesame` checks that the machine is online and logged in to gcloud, aws and/or az (and Cloudflare: wrangler, or the cf login OpenTofu uses), and offers to log in when it isn't. Projects run it before `dev` (`predev`) and before infra commands (`auth`).
+`cloudsesame` checks that the machine is online and logged in to gcloud, aws and/or az (and Cloudflare: wrangler, or the cf login OpenTofu uses; and the Sentry token OpenTofu uses), and offers to log in when it isn't. Projects run it before `dev` (`predev`) and before infra commands (`auth`).
 
 ## Running it as an agent
 
@@ -80,6 +80,7 @@ With `cloudsesame … -- <command>`, once ready, the exit code is the command's 
 - **az**: `tenant` and/or `subscription` (ID or name) to pin them.
 - **wrangler**: for projects that run `wrangler` (deploy, dev). Checks `wrangler whoami`; fix is `wrangler login`. `account` (ID or name) pins the account. If `CLOUDFLARE_API_TOKEN` is set, wrangler uses it instead, and a bad token has no fix.
 - **cloudflare**: for OpenTofu/Terraform with the Cloudflare provider. Checks Cloudflare's `cf` CLI login (`cf auth whoami`, run as `bun x cf` when cf isn't installed; fix `cf auth login`, a browser login the user must do). OpenTofu can't read that login, so run it through cloudsesame: `cloudsesame infra -- tofu plan` runs `tofu plan` with `CLOUDFLARE_API_TOKEN` set from the login. Put that in package.json scripts instead of a bare `tofu` call. Never run `cloudsesame env` yourself: it prints the token, which would end up in your output. Humans may use `eval "$(cloudsesame env)"` in their own shell. If `CLOUDFLARE_API_TOKEN` (or `tokenEnv`) is already set (CI), that token is verified and passed on instead. `zones` (domain names) checks each zone's DNS is readable. Not auto-detected without a config.
+- **sentry**: for OpenTofu/Terraform with the Sentry provider (`jianyuan/sentry`). Checks the token `sentry-cli login` saved in `~/.sentryclirc` against Sentry's API (fix `sentry-cli login`, run as `bun x @sentry/cli login` when sentry-cli isn't installed; the user must create and paste a personal token). Run OpenTofu through cloudsesame (`cloudsesame infra -- tofu plan`) so it gets `SENTRY_AUTH_TOKEN` (and `SENTRY_BASE_URL` for self-hosted). Never run `cloudsesame env` yourself. If `SENTRY_AUTH_TOKEN` (or `tokenEnv`) is set (CI), that token is verified and passed on instead. `organization` (slug) must be reachable; `scopes` (e.g. `["project:write", "team:write", "alerts:write"]`) must be on the token, else `denied`. `url` for self-hosted Sentry. Not auto-detected without a config.
 - **`groups`**: name the set of providers a workflow needs, so scripts can run `cloudsesame <group>`.
 - **`noTerminal: "skip"`**: only if the project prefers CI and agents to continue silently instead of failing. Default is `"fail"`, which is usually right.
 - `predev` is lenient (offline and skipping are allowed); `auth` (the default command, also `cloudsesame <provider|group>`) always fails offline. Add `--strict` to make skips fail.
@@ -95,7 +96,8 @@ File: nearest `sesame.config.{ts,mts,js,mjs,json}` from the current directory up
 | `az` | | `{ tenant?, subscription?, actions?: string[], dataActions?: string[], permissionScope? }` or a list |
 | `wrangler` | | `{ account? }` or a list |
 | `cloudflare` | | `{ tokenEnv?, accountId?, zones?: string[] }` or a list |
-| `groups` | | `{ [name]: ("gcloud" \| "aws" \| "az" \| "wrangler" \| "cloudflare")[] }` |
+| `sentry` | | `{ tokenEnv?, url?, organization?, scopes?: string[] }` or a list |
+| `groups` | | `{ [name]: ("gcloud" \| "aws" \| "az" \| "wrangler" \| "cloudflare" \| "sentry")[] }` |
 | `offline` | `"prompt"` | `"prompt" \| "continue" \| "fail"` (predev) |
 | `unauthenticated` | `"prompt"` | `"prompt" \| "login" \| "skip" \| "fail"` |
 | `noTerminal` | `"fail"` | `"fail" \| "skip"` |
