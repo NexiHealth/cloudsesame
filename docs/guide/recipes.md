@@ -179,7 +179,7 @@ export default {
 
 :::
 
-The first time, cloudsesame offers `sentry-cli login` (run through Bun if it isn't installed): it opens Sentry's token page, and you paste a personal token with the scopes above. After that, every `plan` and `apply` runs `tofu` with `SENTRY_AUTH_TOKEN` set:
+The first time, cloudsesame offers `sentry-cli login` (run through Bun if it isn't installed): answer **n** when it offers to open the browser (it links to organization tokens, which can't manage projects), create a [personal token](https://sentry.io/settings/account/api/auth-tokens/) with the scopes above, and paste it. After that, every `plan` and `apply` runs `tofu` with `SENTRY_AUTH_TOKEN` set:
 
 ```
 ✔ sentry login  me@acme.dev

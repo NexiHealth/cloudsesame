@@ -536,7 +536,15 @@ describe("sentry", () => {
   });
 
   test("not logged in offers sentry-cli login (through Bun without sentry-cli); neither offers Bun", async () => {
-    expect(await run({}).check()).toEqual([{ provider: "sentry", label: "login", state: "unauthenticated", message: "not logged in", fix: ["sentry-cli", "login"] }]);
+    expect(await run({}).check()).toEqual([
+      {
+        provider: "sentry",
+        label: "login",
+        state: "unauthenticated",
+        message: "not logged in. sentry-cli offers organization tokens (org:ci only): answer n, then paste a personal token from https://sentry.io/settings/account/api/auth-tokens/",
+        fix: ["sentry-cli", "login"],
+      },
+    ]);
     const [viaBun] = await run({}, { which: (c) => (c === "bun" ? "/bin/bun" : undefined) }).check();
     expect(viaBun!.fix).toEqual(["bun", "x", "@sentry/cli", "login"]);
     expect(sentryCliCommand(() => undefined, {}, "/nowhere")).toBeUndefined();
@@ -581,6 +589,9 @@ describe("sentry", () => {
     expect(orgTokenUrl(token)).toBe("https://sentry.acme.dev");
     const http = api({ "/": [200, { auth: { scopes: ["org:ci"] }, user: null }] }, "https://sentry.acme.dev").http;
     expect(await run({}, { env: { SENTRY_AUTH_TOKEN: token }, http }).check()).toMatchObject([{ state: "ok", identity: "organization token (sentry.acme.dev)" }]);
+    // From sentry-cli login, it's the token its browser link leads to, and it can't manage projects.
+    const [login] = await run({}, { files: rc(token), http }).check();
+    expect(login).toMatchObject({ state: "mismatch", message: expect.stringContaining("https://sentry.acme.dev/settings/account/api/auth-tokens/"), fix: ["sentry-cli", "--url", "https://sentry.acme.dev", "login"] });
   });
 
   test("organization must be reachable", async () => {
@@ -597,7 +608,7 @@ describe("sentry", () => {
       { provider: "sentry", label: "scopes", state: "ok", identity: "project:write, team:read, org:read" },
     ]);
     const [, scopes] = await run({ scopes: ["project:write", "alerts:write", "org:write"] }, { files: rc("t"), http }).check();
-    expect(scopes).toEqual({ provider: "sentry", label: "scopes", state: "denied", message: "sentry-cli's token lacks alerts:write, org:write" });
+    expect(scopes).toEqual({ provider: "sentry", label: "scopes", state: "denied", message: "sentry-cli's token lacks alerts:write, org:write: create a personal token with them at https://sentry.io/settings/account/api/auth-tokens/" });
     expect(missingScopes(["org:admin"], ["org:integrations", "org:read"])).toEqual([]);
   });
 
