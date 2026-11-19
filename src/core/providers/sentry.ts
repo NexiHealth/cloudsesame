@@ -7,6 +7,12 @@ import type { CheckContext, Provider, Status } from "./types";
 
 export const SENTRY_URL = "https://sentry.io";
 
+/**
+ * Where to create a personal (user) token. `sentry-cli login` opens the organization tokens page instead, whose tokens
+ * only get `org:ci` (releases, source maps): not enough for OpenTofu.
+ */
+export const personalTokensUrl = (url: string) => `${url}/settings/account/api/auth-tokens/`;
+
 /** How to run `sentry-cli`: installed, or through Bun (`bun x @sentry/cli`). */
 export function sentryCliCommand(which: CheckContext["which"], env: NodeJS.ProcessEnv, home = homedir()): string[] | undefined {
   if (which("sentry-cli")) return ["sentry-cli"];
@@ -132,7 +138,7 @@ export const sentry: Provider<SentryTarget> = {
 
     if (!token) {
       if (!loginFix) return [{ ...base, state: "missing", message: "not logged in, and sentry-cli needs Bun to run (bun x @sentry/cli). Install Bun?", fix: installBun() }];
-      return [{ ...base, state: "unauthenticated", message: "not logged in", fix: loginFix }];
+      return [{ ...base, state: "unauthenticated", message: `not logged in. sentry-cli offers organization tokens (org:ci only): answer n, then paste a personal token from ${personalTokensUrl(url)}`, fix: loginFix }];
     }
 
     const get = (path: string) => ctx.http(`${url}/api/0${path}`, { method: "GET", headers: { authorization: `Bearer ${token}` }, timeout: ctx.timeout });
@@ -144,6 +150,10 @@ export const sentry: Provider<SentryTarget> = {
 
     const identity = index.user?.email ?? index.user?.username ?? "organization token";
     const status: Status = { ...base, state: "ok", identity: url === SENTRY_URL ? identity : `${identity} (${new URL(url).host})` };
+    // What `sentry-cli login` steers you to. In CI (`fromEnv`) it's a deliberate choice, and `scopes` judges it.
+    if (!fromEnv && !index.user) {
+      return [{ ...status, state: "mismatch", message: `sentry-cli has an organization token (org:ci only, can't manage projects). Log in again with a personal token from ${personalTokensUrl(url)}`, fix }];
+    }
 
     if (target.organization) {
       const org = await get(`/organizations/${encodeURIComponent(target.organization)}/`);
@@ -156,7 +166,7 @@ export const sentry: Provider<SentryTarget> = {
       const missing = missingScopes(index.auth?.scopes ?? [], target.scopes);
       statuses.push(
         missing.length > 0
-          ? { provider: "sentry", label: "scopes", state: "denied", message: `${what} lacks ${missing.join(", ")}` }
+          ? { provider: "sentry", label: "scopes", state: "denied", message: `${what} lacks ${missing.join(", ")}: create a personal token with them at ${personalTokensUrl(url)}` }
           : { provider: "sentry", label: "scopes", state: "ok", identity: target.scopes.join(", ") },
       );
     }
