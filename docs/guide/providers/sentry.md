@@ -37,7 +37,7 @@ OpenTofu needs a **personal token**, and `sentry-cli login` steers you to the wr
 2. Open [Personal Tokens](https://sentry.io/settings/account/api/auth-tokens/) (Settings → Account → Personal Tokens; `<url>/settings/account/api/auth-tokens/` on self-hosted Sentry) and create a token with the scopes your resources need, for example **Project**, **Team** and **Alerts** at *Admin* or *Read & Write*, and **Organization** at *Read*.
 3. Paste it at sentry-cli's *Enter your token* prompt. It answers *Valid token for user …*.
 
-cloudsesame's messages say the same. If `sentry-cli login` saved an organization token anyway, the **login** check is `mismatch` and offers to log in again. Put the scopes in `scopes` too, so a token that's missing one fails before `tofu apply` does.
+Put the scopes your OpenTofu code needs in `scopes`. A token missing one then fails the **scopes** check instead of failing partway through `tofu apply`, and cloudsesame's messages (logged out, organization token, missing scopes) list them the way the token form does, e.g. *Project: Read & Write, Alerts: Read & Write, Organization: Read*. If `sentry-cli login` saved an organization token anyway, the **login** check is `mismatch` and offers to log in again.
 
 In CI, an organization token in `SENTRY_AUTH_TOKEN` is accepted as is: `scopes` decides whether it's enough.
 

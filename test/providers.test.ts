@@ -5,7 +5,7 @@ import { aws } from "../src/core/providers/aws";
 import type { Http } from "../src/core/http";
 import { az, isAllowed } from "../src/core/providers/az";
 import { cfCommand, cloudflare, installBun } from "../src/core/providers/cloudflare";
-import { missingScopes, orgTokenUrl, parseIni, sentry, sentryCliCommand } from "../src/core/providers/sentry";
+import { missingScopes, orgTokenUrl, parseIni, scopeLabels, sentry, sentryCliCommand } from "../src/core/providers/sentry";
 import { wrangler } from "../src/core/providers/wrangler";
 import { adcPath, gcloud } from "../src/core/providers/gcloud";
 import { ctx, fakeExec } from "./helpers";
@@ -644,8 +644,18 @@ describe("sentry", () => {
       { provider: "sentry", label: "scopes", state: "ok", identity: "project:write, team:read, org:read" },
     ]);
     const [, scopes] = await run({ scopes: ["project:write", "alerts:write", "org:write"] }, { files: rc("t"), http }).check();
-    expect(scopes).toEqual({ provider: "sentry", label: "scopes", state: "denied", message: "sentry-cli's token lacks alerts:write, org:write: create a personal token with them at https://sentry.io/settings/account/api/auth-tokens/" });
+    expect(scopes).toEqual({ provider: "sentry", label: "scopes", state: "denied", message:
+        "sentry-cli's token lacks alerts:write, org:write: create a personal token with Project: Read & Write, Alerts: Read & Write, Organization: Read & Write at https://sentry.io/settings/account/api/auth-tokens/",
+    });
     expect(missingScopes(["org:admin"], ["org:integrations", "org:read"])).toEqual([]);
+  });
+
+  test("logged out with scopes: the message lists them as Sentry's token form names them", async () => {
+    const [status] = await run({ scopes: ["project:write", "team:write", "alerts:write", "org:read"] }).check();
+    expect(status!.message).toBe(
+      "not logged in. sentry-cli offers organization tokens (org:ci only): answer n, then paste a personal token with Project: Read & Write, Team: Read & Write, Alerts: Read & Write, Organization: Read from https://sentry.io/settings/account/api/auth-tokens/",
+    );
+    expect(scopeLabels(["project:read", "project:admin", "event:read", "project:releases", "dashboard:write"])).toBe("Project: Admin, Issue & Event: Read, Release: Admin, dashboard:write");
   });
 
   test("network failure is an error", async () => {

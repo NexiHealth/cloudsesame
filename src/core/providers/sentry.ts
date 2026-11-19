@@ -73,6 +73,31 @@ const IMPLIED: Record<string, string[]> = {
   "alerts:write": ["alerts:read"],
 };
 
+const RESOURCES: Record<string, string> = { org: "Organization", project: "Project", team: "Team", member: "Member", event: "Issue & Event", alerts: "Alerts" };
+const LEVELS: Record<string, string> = { read: "Read", write: "Read & Write", admin: "Admin" };
+
+/**
+ * Scopes as Sentry's token form names its permissions, e.g. `["project:write", "org:read"]` -> "Project: Read & Write,
+ * Organization: Read". Within a resource, only the highest level is listed. Scopes the form doesn't name stay as they are.
+ */
+export function scopeLabels(scopes: string[]): string {
+  const order = Object.keys(LEVELS);
+  const best = new Map<string, string>();
+  const other: string[] = [];
+  for (const scope of scopes) {
+    const [resource = "", level = ""] = scope.split(":");
+    if (scope === "project:releases") other.push("Release: Admin");
+    else if (RESOURCES[resource] && LEVELS[level]) {
+      const current = best.get(resource);
+      if (!current || order.indexOf(level) > order.indexOf(current)) best.set(resource, level);
+    } else other.push(scope);
+  }
+  return [...[...best].map(([resource, level]) => `${RESOURCES[resource]}: ${LEVELS[level]}`), ...other].join(", ");
+}
+
+/** " with Project: Read & Write, …" when the target lists scopes. */
+const withScopes = (scopes: string[] | undefined) => (scopes ? ` with ${scopeLabels(scopes)}` : "");
+
 export function missingScopes(granted: string[], required: string[]): string[] {
   const have = new Set(granted.flatMap((s) => [s, ...(IMPLIED[s] ?? [])]));
   return required.filter((s) => !have.has(s));
@@ -138,7 +163,7 @@ export const sentry: Provider<SentryTarget> = {
 
     if (!token) {
       if (!loginFix) return [{ ...base, state: "missing", message: "not logged in, and sentry-cli needs Bun to run (bun x @sentry/cli). Install Bun?", fix: installBun() }];
-      return [{ ...base, state: "unauthenticated", message: `not logged in. sentry-cli offers organization tokens (org:ci only): answer n, then paste a personal token from ${personalTokensUrl(url)}`, fix: loginFix }];
+      return [{ ...base, state: "unauthenticated", message: `not logged in. sentry-cli offers organization tokens (org:ci only): answer n, then paste a personal token${withScopes(target.scopes)} from ${personalTokensUrl(url)}`, fix: loginFix }];
     }
 
     const get = (path: string) => ctx.http(`${url}/api/0${path}`, { method: "GET", headers: { authorization: `Bearer ${token}` }, timeout: ctx.timeout });
@@ -152,7 +177,7 @@ export const sentry: Provider<SentryTarget> = {
     const status: Status = { ...base, state: "ok", identity: url === SENTRY_URL ? identity : `${identity} (${new URL(url).host})` };
     // What `sentry-cli login` steers you to. In CI (`fromEnv`) it's a deliberate choice, and `scopes` judges it.
     if (!fromEnv && !index.user) {
-      return [{ ...status, state: "mismatch", message: `sentry-cli has an organization token (org:ci only, can't manage projects). Log in again with a personal token from ${personalTokensUrl(url)}`, fix }];
+      return [{ ...status, state: "mismatch", message: `sentry-cli has an organization token (org:ci only, can't manage projects). Log in again with a personal token${withScopes(target.scopes)} from ${personalTokensUrl(url)}`, fix }];
     }
 
     if (target.organization) {
@@ -166,7 +191,7 @@ export const sentry: Provider<SentryTarget> = {
       const missing = missingScopes(index.auth?.scopes ?? [], target.scopes);
       statuses.push(
         missing.length > 0
-          ? { provider: "sentry", label: "scopes", state: "denied", message: `${what} lacks ${missing.join(", ")}: create a personal token with them at ${personalTokensUrl(url)}` }
+          ? { provider: "sentry", label: "scopes", state: "denied", message: `${what} lacks ${missing.join(", ")}: create a personal token${withScopes(target.scopes)} at ${personalTokensUrl(url)}` }
           : { provider: "sentry", label: "scopes", state: "ok", identity: target.scopes.join(", ") },
       );
     }
