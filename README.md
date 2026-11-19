@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>Open sesame for your clouds.</b><br>
-  Checks that you're online and logged in to <b>gcloud</b>, <b>aws</b>, <b>az</b> and <b>Cloudflare</b> before you work, and logs you in when you're not.
+  Checks that you're online and logged in to <b>gcloud</b>, <b>aws</b>, <b>az</b>, <b>Cloudflare</b> and <b>Sentry</b> before you work, and logs you in when you're not.
 </p>
 
 <p align="center">
@@ -73,7 +73,7 @@ No config? cloudsesame checks every cloud CLI you have installed, with default s
 | `cloudsesame check` | Report only. Never prompts. Exit 4 if anything isn't ready |
 | `cloudsesame init` | Generate `sesame.config.ts` (or `--json` for `sesame.config.json`) |
 | `cloudsesame aws` · `cloudsesame infra` | Only check some providers, or a [group](#groups) from your config |
-| `cloudsesame infra -- tofu plan` | Check, then run the command with credentials tools can't find themselves (the Cloudflare token) |
+| `cloudsesame infra -- tofu plan` | Check, then run the command with credentials tools can't find themselves (the Cloudflare and Sentry tokens) |
 | `eval "$(cloudsesame env)"` | Check, then export those credentials into your shell, so `tofu plan` works on its own. See [Shell integration](https://nexihealth.github.io/cloudsesame/guide/shell) |
 
 ## Configure
@@ -189,6 +189,7 @@ export default {
 | `az` | | `{ tenant?, subscription?, actions?, dataActions?, permissionScope? }` or a list |
 | `wrangler` | | `{ account? }` or a list. Checks `wrangler login` (or the token wrangler uses) |
 | `cloudflare` | | `{ tokenEnv?, accountId?, zones? }` or a list. Checks the `cf` login (run through Bun) and gives it to OpenTofu: `eval "$(cloudsesame env)"` or `cloudsesame infra -- tofu plan` ([Shell integration](https://nexihealth.github.io/cloudsesame/guide/shell)) |
+| `sentry` | | `{ tokenEnv?, url?, organization?, scopes? }` or a list. Checks the `sentry-cli login` token (or `SENTRY_AUTH_TOKEN`) and gives it to OpenTofu as `SENTRY_AUTH_TOKEN` ([sentry](https://nexihealth.github.io/cloudsesame/guide/providers/sentry)) |
 | <a id="groups"></a>`groups` | | Named sets of providers: `{ infra: ["gcloud", "aws"] }` → `cloudsesame infra` |
 | `offline` | `"prompt"` | `predev` when offline: `prompt` · `continue` · `fail` |
 | `unauthenticated` | `"prompt"` | When a provider isn't ready: `prompt` · `login` · `skip` · `fail` |

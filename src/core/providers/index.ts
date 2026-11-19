@@ -3,8 +3,9 @@ import { aws } from "./aws";
 import { az } from "./az";
 import { cloudflare } from "./cloudflare";
 import { gcloud } from "./gcloud";
+import { sentry } from "./sentry";
 import type { Provider } from "./types";
 import { wrangler } from "./wrangler";
 
 // `any`: each provider has its own target type.
-export const providers: Record<ProviderId, Provider<any>> = { gcloud, aws, az, cloudflare, wrangler };
+export const providers: Record<ProviderId, Provider<any>> = { gcloud, aws, az, cloudflare, wrangler, sentry };

@@ -35,7 +35,7 @@ export async function check(mode: Mode, ctx: Context, ink: boolean): Promise<Che
   return { opts, result: await runFlowInk(opts, ctx.flags.animation ?? opts.config.animation, { stderr: ctx.stderr }) };
 }
 
-/** Environment the ready targets provide to other tools (`CLOUDFLARE_API_TOKEN` from the cf login). */
+/** Environment the ready targets provide to other tools (`CLOUDFLARE_API_TOKEN` from the cf login, `SENTRY_AUTH_TOKEN` from sentry-cli). */
 export const providedEnv = ({ opts }: Checked) => commandEnv(opts.targets, defaultDeps, opts.config.timeout ?? 20_000);
 
 async function finish(ctx: Context, checked: Checked): Promise<number> {

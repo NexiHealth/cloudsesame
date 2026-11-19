@@ -41,7 +41,7 @@ export function resolveTargets(config: Config, names: string[], which = defaultW
 
 /** Human label for a target, e.g. "aws nexihealth-admin". */
 export function targetLabel({ provider, target }: Target): string {
-  const t = target as { profile?: string; subscription?: string; tenant?: string; project?: string; zones?: string[]; account?: string };
+  const t = target as { profile?: string; subscription?: string; tenant?: string; project?: string; zones?: string[]; account?: string; organization?: string };
   const detail =
     provider === "aws"
       ? (t.profile ?? process.env.AWS_PROFILE ?? "default")
@@ -51,6 +51,8 @@ export function targetLabel({ provider, target }: Target): string {
           ? t.zones?.join(", ")
           : provider === "wrangler"
             ? t.account
-            : t.project;
+            : provider === "sentry"
+              ? t.organization
+              : t.project;
   return detail ? `${provider} ${detail}` : provider;
 }

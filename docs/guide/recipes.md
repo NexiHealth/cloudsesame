@@ -153,6 +153,41 @@ Prefer typing `tofu plan` yourself? Set the token in your shell with `eval "$(cl
 
 In CI, set `CLOUDFLARE_API_TOKEN` to an [API token](https://dash.cloudflare.com/profile/api-tokens) (the **Edit zone DNS** template): cloudsesame verifies it instead of the `cf` login and passes it through.
 
+## Sentry with OpenTofu
+
+The [Sentry provider](https://search.opentofu.org/provider/jianyuan/sentry/latest) reads its token from `SENTRY_AUTH_TOKEN`, not from `sentry-cli login`. Run OpenTofu through cloudsesame and it gets the token from your login:
+
+::: code-group
+
+```ts [sesame.config.ts]
+import type { Config } from "cloudsesame";
+
+export default {
+  sentry: { organization: "acme", scopes: ["project:write", "team:write", "alerts:write"] },
+  groups: { infra: ["sentry"] }, // add your state backend's provider, e.g. gcloud
+} satisfies Config;
+```
+
+```json [package.json]
+{
+  "scripts": {
+    "plan": "cloudsesame infra -- tofu plan",
+    "apply": "cloudsesame infra -- tofu apply"
+  }
+}
+```
+
+:::
+
+The first time, cloudsesame offers `sentry-cli login` (run through Bun if it isn't installed): it opens Sentry's token page, and you paste a personal token with the scopes above. After that, every `plan` and `apply` runs `tofu` with `SENTRY_AUTH_TOKEN` set:
+
+```
+✔ sentry login  me@acme.dev
+✔ sentry scopes  project:write, team:write, alerts:write
+```
+
+Prefer typing `tofu plan` yourself? Run `eval "$(cloudsesame env infra)"` once per shell. Self-hosted Sentry: add `url: "https://sentry.acme.dev"`, and commands get `SENTRY_BASE_URL` too. In CI, set `SENTRY_AUTH_TOKEN`: it's verified instead of the login and passed through. See [sentry](./providers/sentry).
+
 ## Azure
 
 Pin the tenant and the subscription (by ID or name):

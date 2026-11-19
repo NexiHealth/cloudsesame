@@ -17,7 +17,7 @@ describe("resolveTargets", () => {
   });
 
   test("nothing configured: CLI-less providers aren't auto-detected", () => {
-    expect(resolveTargets({}, [], installed("aws", "cloudflare"))).toEqual([{ provider: "aws", target: {} }]);
+    expect(resolveTargets({}, [], installed("aws", "cloudflare", "sentry-cli"))).toEqual([{ provider: "aws", target: {} }]);
   });
 
   test("names and groups, deduplicated", () => {
@@ -36,6 +36,7 @@ test("targetLabel", () => {
   expect(targetLabel({ provider: "az", target: {} })).toBe("az");
   expect(targetLabel({ provider: "wrangler", target: { account: "Acme" } })).toBe("wrangler Acme");
   expect(targetLabel({ provider: "cloudflare", target: { zones: ["a.dev", "b.dev"] } })).toBe("cloudflare a.dev, b.dev");
+  expect(targetLabel({ provider: "sentry", target: { organization: "acme" } })).toBe("sentry acme");
 });
 
 test("checkTarget reports a missing CLI", async () => {

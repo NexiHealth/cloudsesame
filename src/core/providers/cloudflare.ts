@@ -1,26 +1,20 @@
 import { homedir } from "node:os";
-import { join } from "node:path";
 import type { CloudflareTarget } from "../config/types";
-import { selfBun } from "../exec";
 import type { HttpResponse } from "../http";
+import { bunPath, installBun } from "./bun";
 import type { CheckContext, Provider, Status } from "./types";
+
+export { installBun };
 
 const API = "https://api.cloudflare.com/client/v4";
 export const TOKENS_URL = "https://dash.cloudflare.com/profile/api-tokens";
 
-/**
- * How to run Cloudflare's `cf` CLI: installed, through Bun (`bun x cf`), or through this binary acting as Bun.
- * Bun's installer puts it in `$BUN_INSTALL/bin` (default `~/.bun/bin`), which may not be on PATH yet.
- */
+/** How to run Cloudflare's `cf` CLI: installed, or through Bun (`bun x cf`). */
 export function cfCommand(which: CheckContext["which"], env: NodeJS.ProcessEnv, home = homedir()): string[] | undefined {
   if (which("cf")) return ["cf"];
-  const bun = which("bun") ? "bun" : (selfBun() ?? which(join(env.BUN_INSTALL ?? join(home, ".bun"), "bin", "bun")));
+  const bun = bunPath(which, env, home);
   return bun ? [bun, "x", "cf"] : undefined;
 }
-
-/** Bun's official installer (https://bun.sh). */
-export const installBun = (platform = process.platform) =>
-  platform === "win32" ? ["powershell", "-c", "irm bun.sh/install.ps1 | iex"] : ["bash", "-c", "curl -fsSL https://bun.sh/install | bash"];
 
 interface Whoami {
   authenticated?: boolean;

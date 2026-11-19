@@ -24,10 +24,10 @@ ${Object.values(commands)
   .map((c) => `  ${c.usage.padEnd(width)}  ${c.description}`)
   .join("\n")}
 
-  Without a command, runs \`${DEFAULT_COMMAND}\`. Providers: gcloud, aws, az, cloudflare, wrangler, or a group from the config.
+  Without a command, runs \`${DEFAULT_COMMAND}\`. Providers: gcloud, aws, az, cloudflare, wrangler, sentry, or a group from the config.
 
   After \`--\`, a command to run once ready, with credentials tools can't find themselves
-  (CLOUDFLARE_API_TOKEN from the cf login), e.g. \`${pkg.name} infra -- tofu plan\`. Exits with its code.
+  (CLOUDFLARE_API_TOKEN from the cf login, SENTRY_AUTH_TOKEN from sentry-cli), e.g. \`${pkg.name} infra -- tofu plan\`. Exits with its code.
 
 Options:
   --skip                    Never prompt or fail: skip unauthenticated providers, continue offline

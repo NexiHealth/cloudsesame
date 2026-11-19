@@ -52,6 +52,7 @@ Each provider takes one target or a list of targets. Every target is checked sep
 | [`az`](./providers/az#options) | `tenant`, `subscription`, `actions`, `dataActions`, `permissionScope` |
 | [`wrangler`](./providers/wrangler#options) | `account` |
 | [`cloudflare`](./providers/cloudflare#options) | `tokenEnv`, `accountId`, `zones` |
+| [`sentry`](./providers/sentry#options) | `tokenEnv`, `url`, `organization`, `scopes` |
 
 Each provider's page lists what its options do, what's checked, and its quirks.
 

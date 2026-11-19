@@ -1,7 +1,7 @@
 // Public config types. Shipped as the package's type declarations (`import type { Config } from "cloudsesame"`),
 // so this file must stay types-only. Validation lives in ./schema.ts.
 
-export type ProviderId = "gcloud" | "aws" | "az" | "cloudflare" | "wrangler";
+export type ProviderId = "gcloud" | "aws" | "az" | "cloudflare" | "wrangler" | "sentry";
 export type OfflinePolicy = "prompt" | "continue" | "fail";
 export type UnauthenticatedPolicy = "prompt" | "login" | "skip" | "fail";
 export type NoTerminalPolicy = "fail" | "skip";
@@ -97,6 +97,33 @@ export interface WranglerTarget {
   account?: string;
 }
 
+/**
+ * Sentry for OpenTofu/Terraform (the `jianyuan/sentry` provider). Checks the token `sentry-cli login` saved (sentry-cli
+ * runs with Bun when it isn't installed), which commands after `--` get as `SENTRY_AUTH_TOKEN`
+ * (`cloudsesame sentry -- tofu plan`). When a token is already set (CI), that token is verified and passed on instead.
+ */
+export interface SentryTarget {
+  /**
+   * Environment variable with an auth token to use instead of the sentry-cli login, e.g. in CI. Passed to commands
+   * after `--` as `SENTRY_AUTH_TOKEN`, the variable the OpenTofu/Terraform Sentry provider reads.
+   * @default "SENTRY_AUTH_TOKEN"
+   */
+  tokenEnv?: string;
+  /**
+   * Base URL of a self-hosted Sentry, e.g. `"https://sentry.acme.dev"`. Passed to commands as `SENTRY_BASE_URL`
+   * (`https://sentry.acme.dev/api/`).
+   * @default the organization token's URL, then `SENTRY_URL`, then sentry-cli's `[defaults] url`, then "https://sentry.io"
+   */
+  url?: string;
+  /** Organization slug the token must reach, e.g. `"acme"`. */
+  organization?: string;
+  /**
+   * Scopes the token must have, e.g. `["project:write", "team:write", "alerts:write"]`. A higher level counts
+   * (`project:admin` covers `project:write`). A token's scopes are fixed when it's created.
+   */
+  scopes?: string[];
+}
+
 export interface Config {
   $schema?: string;
   /**
@@ -138,4 +165,5 @@ export interface Config {
   az?: AzTarget | AzTarget[];
   cloudflare?: CloudflareTarget | CloudflareTarget[];
   wrangler?: WranglerTarget | WranglerTarget[];
+  sentry?: SentryTarget | SentryTarget[];
 }
