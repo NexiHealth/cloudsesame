@@ -36,6 +36,7 @@ gcloud: { credentials: "adc", project: "acme-dev", permissions: ["aiplatform.end
 
 - Calls [`projects.testIamPermissions`](https://cloud.google.com/resource-manager/reference/rest/v1/projects/testIamPermissions) on `project`, which returns the subset you hold. Anyone can ask about themselves; no extra role is needed.
 - Uses the ADC token when `credentials` is `"adc"` or `"both"` (what SDKs use), else the user login's token.
+- With user credentials, the call is billed to your quota project (`x-goog-user-project`): `quotaProject`, else the ADC file's `quota_project_id`, else `project`. Without it, Google bills gcloud's shared OAuth client project, whose quota is often exhausted (`Quota exceeded … for consumer 'project_number:764086051850'`). The call is free; billing here only means whose quota it counts against. If that project can't take it (you lack `serviceusage.services.use`, or the Cloud Resource Manager API isn't enabled there), it retries without it. Service accounts are billed to their own project.
 - No access to the project at all is `denied` too (`no access to project …`, followed by Google's reason).
 - Only project-level IAM: it doesn't see whether the API is enabled, quota, organization policies, or roles granted on a single resource (like a bucket).
 

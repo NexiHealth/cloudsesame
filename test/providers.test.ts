@@ -98,6 +98,7 @@ describe("gcloud", () => {
 });
 
 describe("gcloud permissions", () => {
+  const adcFile = join("/gc", "application_default_credentials.json");
   const loggedIn = {
     "gcloud auth print-access-token": { stdout: "user-tok\n" },
     "gcloud auth application-default print-access-token": { stdout: "adc-tok\n" },
@@ -159,6 +160,41 @@ describe("gcloud permissions", () => {
     expect(broken.find((s) => s.label === "permissions")).toMatchObject({ state: "error", message: "testIamPermissions failed: Permission denied on resource project proj-a." });
     const offline = await gcloud.check(target, ctx(fakeExec(loggedIn).exec));
     expect(offline.find((s) => s.label === "permissions")).toMatchObject({ state: "error", message: "testIamPermissions failed: no network in tests" });
+  });
+
+  test("user credentials bill the quota project, not gcloud's shared OAuth client", async () => {
+    const userProject = async (t: object, files: Record<string, string>, account = "me@x.com") => {
+      const headers: Array<string | undefined> = [];
+      const http: Http = async (_url, init) => {
+        headers.push(init.headers?.["x-goog-user-project"]);
+        return { status: 200, body: JSON.stringify({ permissions: target.permissions }) };
+      };
+      const exec = fakeExec({ ...loggedIn, "gcloud config get-value account": { stdout: `${account}\n` } }).exec;
+      await gcloud.check({ ...target, ...t }, ctx(exec, files, http));
+      return headers;
+    };
+    const user = (quota?: string) => ({ [adcFile]: JSON.stringify({ type: "authorized_user", quota_project_id: quota }) });
+    expect(await userProject({}, user("billing"))).toEqual(["billing"]);
+    expect(await userProject({ quotaProject: "cfg" }, user("billing"))).toEqual(["cfg"]);
+    expect(await userProject({}, user())).toEqual(["proj-a"]);
+    expect(await userProject({}, { [adcFile]: JSON.stringify({ type: "service_account" }) })).toEqual([undefined]);
+    expect(await userProject({ credentials: "user" }, {})).toEqual(["proj-a"]);
+    expect(await userProject({ credentials: "user" }, {}, "ci@p.iam.gserviceaccount.com")).toEqual([undefined]);
+  });
+
+  test("retries without the quota project when it can't be billed", async () => {
+    const headers: Array<string | undefined> = [];
+    const http: Http = async (_url, init) => {
+      const userProject = init.headers?.["x-goog-user-project"];
+      headers.push(userProject);
+      return userProject
+        ? { status: 403, body: JSON.stringify({ error: { message: "Caller does not have required permission to use project proj-a. Grant the caller the roles/serviceusage.serviceUsageConsumer role. USER_PROJECT_DENIED" } }) }
+        : { status: 200, body: JSON.stringify({ permissions: target.permissions }) };
+    };
+    const files = { [adcFile]: JSON.stringify({ type: "authorized_user" }) };
+    const statuses = await gcloud.check(target, ctx(fakeExec(loggedIn).exec, files, http));
+    expect(headers).toEqual(["proj-a", undefined]);
+    expect(statuses.find((s) => s.label === "permissions")?.state).toBe("ok");
   });
 
   test("not tested until the login works", async () => {
