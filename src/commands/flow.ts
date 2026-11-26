@@ -2,7 +2,7 @@ import type { Command, Context } from "../command";
 import { commandEnv } from "../core/check";
 import { loadConfig } from "../core/config/load";
 import { defaultDeps } from "../core/deps";
-import { execInteractive } from "../core/exec";
+import { execInteractive, releaseStdin } from "../core/exec";
 import { ExitCode } from "../core/exit";
 import { type Mode, resolvePolicies } from "../core/flow/policy";
 import { runFlow } from "../core/flow/run";
@@ -43,7 +43,9 @@ async function finish(ctx: Context, checked: Checked): Promise<number> {
   if (ctx.flags.json) console.log(JSON.stringify({ ok: result.code === 0, ...result }, null, 2));
   if (!ctx.command || result.code !== ExitCode.Ok) return result.code;
   // The terminal is free again (Ink has exited): hand it to the command, with what the providers provide.
-  return execInteractive(ctx.command, await providedEnv(checked));
+  const env = await providedEnv(checked);
+  releaseStdin();
+  return execInteractive(ctx.command, env);
 }
 
 /** check, auth and predev share one flow; they differ in policies (see resolvePolicies). */

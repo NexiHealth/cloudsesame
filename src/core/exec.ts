@@ -74,5 +74,14 @@ export function execInteractive([cmd, ...args]: string[], env?: Record<string, s
   }).finally(() => process.off("SIGINT", ignore));
 }
 
+/**
+ * Stop reading the terminal for good, before handing it to a command for the rest of the run. Ink (and readline)
+ * read stdin; under Bun a read can stay pending after they stop, and it swallows the first line typed into the
+ * command. Only for a TTY: destroying a piped stdin would close the pipe the command inherits.
+ */
+export function releaseStdin(): void {
+  if (process.stdin.isTTY) process.stdin.destroy();
+}
+
 /** Display form of a command, quoting arguments that need it. */
 export const formatCommand = (cmd: string[]) => cmd.map((a) => (/[\s"']/.test(a) ? JSON.stringify(a) : a)).join(" ");
