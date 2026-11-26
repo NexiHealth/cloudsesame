@@ -3,7 +3,15 @@ import { providers } from "./providers";
 import type { Status } from "./providers/types";
 import type { Target } from "./targets";
 
-const context = (deps: Deps, timeout: number) => ({ exec: deps.exec, which: deps.which, http: deps.http, readFile: deps.readFile, env: deps.env, timeout });
+const context = (deps: Deps, timeout: number) => ({
+  exec: deps.exec,
+  which: deps.which,
+  http: deps.http,
+  readFile: deps.readFile,
+  env: deps.env,
+  now: deps.now,
+  timeout,
+});
 
 /** Check one target. Never throws: failures become statuses. */
 export async function checkTarget(t: Target, deps: Deps, timeout: number): Promise<Status[]> {
@@ -18,9 +26,14 @@ export async function checkTarget(t: Target, deps: Deps, timeout: number): Promi
   }
 }
 
-/** Environment the ready targets provide for a command run after the checks. Later targets win on conflicts. */
-export async function commandEnv(targets: Target[], deps: Deps, timeout: number): Promise<Record<string, string>> {
-  const envs = await Promise.all(targets.map((t) => providers[t.provider].env?.(t.target, context(deps, timeout))));
+/**
+ * Environment the ready targets provide for a command run after the checks. Later targets win on conflicts.
+ * `statuses`: the run's results, so a provider can reuse what a cached check found instead of asking its CLI again.
+ */
+export async function commandEnv(targets: Target[], deps: Deps, timeout: number, statuses: Status[] = []): Promise<Record<string, string>> {
+  const envs = await Promise.all(
+    targets.map((t) => providers[t.provider].env?.(t.target, context(deps, timeout), statuses.filter((s) => s.provider === t.provider))),
+  );
   return Object.assign({}, ...envs);
 }
 

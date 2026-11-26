@@ -183,4 +183,28 @@ describe.skipIf(process.platform === "win32")("cache e2e", () => {
     expect((await capture(["auth", "--fresh", "--plain"], dir)).out).toBe("✔ gcloud adc");
     expect(calls()).toBe(first * 3);
   });
+
+  test("a cached cloudflare login still hands the token to the command, without running cf", async () => {
+    const cfCalls = join(dir, "cf-calls");
+    const creds = join(dir, "cf-creds.json");
+    writeFileSync(creds, JSON.stringify({ oauth_token: "oauth-from-cf", expiration_time: "2099-01-01T00:00:00Z" }));
+    const whoami = { authenticated: true, authSource: `OAuth token from ${creds}`, tokenValid: true, email: "me@acme.dev", accounts: [] };
+    writeFileSync(join(dir, "cf"), `#!/bin/sh\necho x >> ${cfCalls}\necho '${JSON.stringify(whoami)}'\n`);
+    chmodSync(join(dir, "cf"), 0o755);
+    writeFileSync(join(dir, "cf.config.json"), JSON.stringify({ onlineCheck: false, cache: true, cloudflare: {} }));
+    const out = join(dir, "token");
+    const env = { ...process.env };
+    delete process.env.CLOUDFLARE_API_TOKEN;
+    try {
+      const cmd = ["-c", "cf.config.json", "--plain", "--", "sh", "-c", `printf %s "$CLOUDFLARE_API_TOKEN" > ${out}`];
+      expect((await capture(cmd, dir)).code).toBe(0);
+      const ran = readFileSync(cfCalls, "utf8");
+      const second = await capture(cmd, dir);
+      expect(second).toMatchObject({ code: 0, err: "✔ cloudflare login  me@acme.dev  (cached)" });
+      expect(readFileSync(out, "utf8")).toBe("oauth-from-cf");
+      expect(readFileSync(cfCalls, "utf8")).toBe(ran);
+    } finally {
+      process.env = env;
+    }
+  });
 });

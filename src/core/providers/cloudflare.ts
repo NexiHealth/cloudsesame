@@ -71,9 +71,10 @@ export const cloudflare: Provider<CloudflareTarget> = {
     if (target.zones) statuses.push(await checkZones(get, target.zones, target.accountId));
     return statuses;
   },
-  async env(target, ctx) {
+  async env(target, ctx, statuses = []) {
     const tokenEnv = target.tokenEnv ?? "CLOUDFLARE_API_TOKEN";
-    const token = ctx.env[tokenEnv]?.trim() || tokens.get(target) || (await cfLogin(target, ctx)).token;
+    const token =
+      ctx.env[tokenEnv]?.trim() || tokens.get(target) || (await savedToken(statuses, ctx)) || (await cfLogin(target, ctx)).token;
     return token ? { CLOUDFLARE_API_TOKEN: token } : ({} as Record<string, string>);
   },
 };
@@ -106,7 +107,22 @@ async function cfLogin(target: CloudflareTarget, { exec, which, env, readFile, t
     const where = file ? `isn't in ${file} (stored in the OS keychain?)` : `source unknown (${whoami.authSource ?? "none"})`;
     return { statuses: [{ ...status, state: "error", message: `cf's token ${where}; it's needed for OpenTofu. Without the keychain: CLOUDFLARE_AUTH_USE_KEYRING=false cf auth login` }] };
   }
-  return { statuses: [status], token };
+  return { statuses: [{ ...status, source: file }], token };
+}
+
+/** A token must outlive the command's start by this much to be reused without `cf auth whoami` refreshing it. */
+const MIN_TOKEN_LIFE = 5 * 60 * 1000;
+
+/**
+ * The token a recent check found (the cache), read again from the file it came from, while it's still valid for a
+ * while. Saves running `cf auth whoami` (slow, it runs through Bun) when the check itself was skipped.
+ */
+async function savedToken(statuses: Status[], { readFile, now }: CheckContext): Promise<string | undefined> {
+  const file = statuses.find((s) => s.label === "login" && s.state === "ok")?.source;
+  if (!file) return undefined;
+  const saved = json<{ oauth_token?: string; expiration_time?: string }>((await readFile(file)) ?? "");
+  const expires = Date.parse(saved?.expiration_time ?? "");
+  return saved?.oauth_token && expires - now() > MIN_TOKEN_LIFE ? saved.oauth_token : undefined;
 }
 
 /** User tokens verify at /user; account-owned tokens only at their account. */

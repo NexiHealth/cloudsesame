@@ -110,6 +110,7 @@ Running several commands in a row (`cloudsesame infra -- tofu plan`, then `tofu 
 - A result is reused per target and per identity environment: changing the target's config or a variable like `AWS_PROFILE`, `CLOUDSDK_CONFIG` or a token checks again.
 - Reused results show `(cached)`, and keep their original time, so repeated runs don't keep them alive past the TTL. When every target is cached, the connectivity check is skipped too.
 - [`check`](./commands#check) always checks, and `--fresh` checks everything for one run. Both still record the results.
+- With a command after `--`, a cached Cloudflare login's token is read again from `cf`'s login file instead of running `cf auth whoami`, as long as it's valid for at least 5 more minutes. Otherwise `cf` refreshes it as usual.
 - Results live in `~/.cache/cloudsesame/checks.json` (`$XDG_CACHE_HOME`, `%LOCALAPPDATA%` on Windows), readable only by you. It holds statuses and hashed keys, never tokens.
 
 ## Validation

@@ -21,6 +21,7 @@ export const ctx = (exec: Exec, files: Record<string, string> = {}, http: Http =
   http,
   readFile: async (path: string) => files[path],
   env: { CLOUDSDK_CONFIG: "/gc" },
+  now: () => Date.parse("2026-01-01T00:00:00Z"),
   timeout: 1000,
 });
 
