@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { join } from "node:path";
 import { cacheKey, cachePath, cacheTtl } from "../src/core/cache";
 import { configSchema } from "../src/core/config/schema";
 import { runFlow } from "../src/core/flow/run";
@@ -122,8 +123,10 @@ describe("cache config", () => {
   });
 
   test("path: XDG cache, ~/.cache, LOCALAPPDATA on Windows", () => {
-    expect(cachePath({ XDG_CACHE_HOME: "/x" }, "linux", "/h")).toBe("/x/cloudsesame/checks.json");
-    expect(cachePath({}, "darwin", "/h")).toBe("/h/.cache/cloudsesame/checks.json");
-    expect(cachePath({ LOCALAPPDATA: "C:\\L" }, "win32", "C:\\h")).toContain("cloudsesame");
+    // join: the separator is the host's, whichever platform is asked for.
+    expect(cachePath({ XDG_CACHE_HOME: "/x" }, "linux", "/h")).toBe(join("/x", "cloudsesame", "checks.json"));
+    expect(cachePath({}, "darwin", "/h")).toBe(join("/h", ".cache", "cloudsesame", "checks.json"));
+    expect(cachePath({ LOCALAPPDATA: "L" }, "win32", "h")).toBe(join("L", "cloudsesame", "checks.json"));
+    expect(cachePath({}, "win32", "h")).toBe(join("h", "AppData", "Local", "cloudsesame", "checks.json"));
   });
 });
