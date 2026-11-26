@@ -21,6 +21,7 @@ export const ctx = (exec: Exec, files: Record<string, string> = {}, http: Http =
   http,
   readFile: async (path: string) => files[path],
   env: { CLOUDSDK_CONFIG: "/gc" },
+  now: () => Date.parse("2026-01-01T00:00:00Z"),
   timeout: 1000,
 });
 
@@ -39,6 +40,8 @@ export function deps(overrides: Partial<Deps> & { online?: boolean } = {}): Deps
     isOnline: async () => overrides.online ?? true,
     http: async () => ({ status: 0, body: "no network in tests" }),
     readFile: async () => undefined,
+    writeFile: async () => {},
+    now: () => 0,
     env: {},
     ...overrides,
   };

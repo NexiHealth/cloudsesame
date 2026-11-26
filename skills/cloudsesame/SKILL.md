@@ -103,6 +103,7 @@ File: nearest `sesame.config.{ts,mts,js,mjs,json}` from the current directory up
 | `noTerminal` | `"fail"` | `"fail" \| "skip"` |
 | `onlineCheck` | `"www.gstatic.com:443"` | `"host:port"` or `false` |
 | `timeout` | `20000` | ms per check |
+| `cache` | `false` | `true` (30 s) or seconds: reuse checks that passed recently. `check` and `--fresh` always check |
 | `animation` | `"after-login"` | `"after-login" \| "always" \| "never"` |
 
 With no config, every installed cloud CLI is checked with default settings.

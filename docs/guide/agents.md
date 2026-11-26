@@ -45,9 +45,9 @@ See [Recipes: CI pipelines](./recipes#ci-pipelines) for choosing between them.
 | --- | --- |
 | `ok` | `true` when `code` is 0. |
 | `code` | The [exit code](./commands#exit-codes). |
-| `online` | Result of the connectivity check, or `null` with `onlineCheck: false`. |
+| `online` | Result of the connectivity check, or `null` with `onlineCheck: false` (or when every target came from the [cache](./configuration#cache)). |
 | `loggedIn` | Whether a login ran during this run. |
-| `results[]` | One entry per check: `provider`, `label`, `state` (`ok` · `unauthenticated` · `mismatch` · `denied` · `missing` · `error`), and when known `identity`, `message`, `fix` (the command as an argv array) and `skipped`. |
+| `results[]` | One entry per check: `provider`, `label`, `state` (`ok` · `unauthenticated` · `mismatch` · `denied` · `missing` · `error`), and when known `identity`, `message`, `fix` (the command as an argv array), `skipped`, `cached` (reused from a recent run), and `source` (the file a credential handed to commands is read from, never the credential). |
 
 `--json` works with `auth` and `predev` too, and implies `--no-input`. See [Providers](./providers) for what each `label` checks.
 

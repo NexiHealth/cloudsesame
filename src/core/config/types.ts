@@ -154,6 +154,13 @@ export interface Config {
    */
   onlineCheck?: string | false;
   /**
+   * Reuse passing checks for a while, so running several commands in a row doesn't check every time. `true` remembers
+   * them for 30 seconds, a number for that many seconds. Only targets that passed are remembered, per target and
+   * identity environment (`AWS_PROFILE`, `CLOUDSDK_CONFIG`, tokens...). `check` and `--fresh` always check.
+   * @default false
+   */
+  cache?: boolean | number;
+  /**
    * Timeout per check, in milliseconds.
    * @default 20000
    */

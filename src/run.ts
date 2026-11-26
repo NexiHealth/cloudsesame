@@ -33,6 +33,7 @@ Options:
   --skip                    Never prompt or fail: skip unauthenticated providers, continue offline
   -y, --yes                 Never prompt: log in when needed, continue offline
   --strict                  Treat skipped providers (and continuing offline) as failures
+  --fresh                   Check everything, even with the config's \`cache\` (check always does)
   --offline <policy>        prompt | continue | fail (predev)
   --unauthenticated <p>     prompt | login | skip | fail
   --no-input                Don't prompt, as if there were no terminal
@@ -69,6 +70,7 @@ function parse(argv: string[]) {
       skip: { type: "boolean" },
       yes: { type: "boolean", short: "y" },
       strict: { type: "boolean" },
+      fresh: { type: "boolean" },
       "no-input": { type: "boolean" },
       force: { type: "boolean" },
       offline: { type: "string" },
@@ -84,6 +86,7 @@ function parse(argv: string[]) {
     skip: !!values.skip,
     yes: !!values.yes,
     strict: !!values.strict,
+    fresh: !!values.fresh,
     noInput: !!values["no-input"],
     force: !!values.force,
     offline: enumFlag("offline", values.offline, ["prompt", "continue", "fail"]),

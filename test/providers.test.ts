@@ -392,8 +392,26 @@ describe("cloudflare", () => {
     test("ok: identity is the email; env hands the OAuth token to commands", async () => {
       const target = {};
       const c = withCf(fakeExec(whoami(loggedIn)).exec);
-      expect(await cloudflare.check(target, c)).toEqual([{ provider: "cloudflare", label: "login", state: "ok", identity: "me@acme.dev" }]);
+      expect(await cloudflare.check(target, c)).toEqual([{ provider: "cloudflare", label: "login", state: "ok", identity: "me@acme.dev", source: FILE }]);
       expect(await cloudflare.env!(target, c)).toEqual({ CLOUDFLARE_API_TOKEN: "oauth" });
+    });
+
+    test("env after a cached check reads the token from the file the check found, without running cf", async () => {
+      const cached = [{ provider: "cloudflare" as const, label: "login", state: "ok" as const, source: FILE }];
+      const { exec, calls } = fakeExec(whoami(loggedIn));
+      expect(await cloudflare.env!({}, withCf(exec), cached)).toEqual({ CLOUDFLARE_API_TOKEN: "oauth" });
+      expect(calls).toEqual([]);
+    });
+
+    test("env after a cached check: a token about to expire is refreshed through cf auth whoami", async () => {
+      const cached = [{ provider: "cloudflare" as const, label: "login", state: "ok" as const, source: FILE }];
+      // Two minutes left (the test clock is 2026-01-01T00:00Z) until whoami refreshes the file.
+      const soon = JSON.stringify({ oauth_token: "stale", expiration_time: "2026-01-01T00:02:00Z" });
+      const fresh = JSON.stringify({ oauth_token: "refreshed", expiration_time: "2026-01-01T01:00:00Z" });
+      const { exec, calls } = fakeExec(whoami(loggedIn));
+      const c = { ...withCf(exec), readFile: async (p: string) => (p === FILE ? (calls.length > 0 ? fresh : soon) : undefined) };
+      expect(await cloudflare.env!({}, c, cached)).toEqual({ CLOUDFLARE_API_TOKEN: "refreshed" });
+      expect(calls).toEqual(["cf auth whoami"]);
     });
 
     test("not logged in offers cf auth login; an expired login, --force", async () => {

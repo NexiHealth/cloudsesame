@@ -42,7 +42,11 @@ function TargetRow({ row }: { row: Row }) {
   return (
     <>
       {row.statuses.map((s) => (
-        <StatusLine key={s.label} status={row.skipped && s.state !== "ok" ? { ...s, message: `${s.message ?? ""} (skipped)`.trim() } : s} />
+        <StatusLine
+          key={s.label}
+          status={row.skipped && s.state !== "ok" ? { ...s, message: `${s.message ?? ""} (skipped)`.trim() } : s}
+          cached={row.cached}
+        />
       ))}
     </>
   );

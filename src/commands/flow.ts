@@ -1,8 +1,9 @@
 import type { Command, Context } from "../command";
+import { cacheTtl } from "../core/cache";
 import { commandEnv } from "../core/check";
 import { loadConfig } from "../core/config/load";
 import { defaultDeps } from "../core/deps";
-import { execInteractive } from "../core/exec";
+import { execInteractive, releaseStdin } from "../core/exec";
 import { ExitCode } from "../core/exit";
 import { type Mode, resolvePolicies } from "../core/flow/policy";
 import { runFlow } from "../core/flow/run";
@@ -17,12 +18,15 @@ export interface Checked {
 
 async function prepare(mode: Mode, ctx: Context): Promise<FlowOptions> {
   const { config } = await loadConfig({ cwd: ctx.cwd, path: ctx.flags.config });
+  const ttl = cacheTtl(config.cache);
   const opts = {
     config,
     targets: resolveTargets(config, ctx.args),
     policies: resolvePolicies(mode, config, ctx.flags),
     // JSON output is for scripts: never prompt.
     interactive: ctx.interactive && !ctx.flags.json,
+    // `check` reports the current state, so it never reuses results; it still records them for the next run.
+    cache: ttl > 0 ? { ttl, read: mode !== "check" && !ctx.flags.fresh } : undefined,
   };
   return opts;
 }
@@ -36,14 +40,16 @@ export async function check(mode: Mode, ctx: Context, ink: boolean): Promise<Che
 }
 
 /** Environment the ready targets provide to other tools (`CLOUDFLARE_API_TOKEN` from the cf login, `SENTRY_AUTH_TOKEN` from sentry-cli). */
-export const providedEnv = ({ opts }: Checked) => commandEnv(opts.targets, defaultDeps, opts.config.timeout ?? 20_000);
+export const providedEnv = ({ opts, result }: Checked) => commandEnv(opts.targets, defaultDeps, opts.config.timeout ?? 20_000, result.results);
 
 async function finish(ctx: Context, checked: Checked): Promise<number> {
   const { result } = checked;
   if (ctx.flags.json) console.log(JSON.stringify({ ok: result.code === 0, ...result }, null, 2));
   if (!ctx.command || result.code !== ExitCode.Ok) return result.code;
   // The terminal is free again (Ink has exited): hand it to the command, with what the providers provide.
-  return execInteractive(ctx.command, await providedEnv(checked));
+  const env = await providedEnv(checked);
+  releaseStdin();
+  return execInteractive(ctx.command, env);
 }
 
 /** check, auth and predev share one flow; they differ in policies (see resolvePolicies). */

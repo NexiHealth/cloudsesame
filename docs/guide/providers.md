@@ -28,7 +28,7 @@ Every check ends in one of these states:
 
 Anything other than `ok` makes the target not ready (exit code 4 if it isn't resolved). When there's a command that fixes it, cloudsesame shows it (`→ …`) and offers to run it. After running a fix, it checks that target again, so a target with several problems is fixed one step at a time.
 
-Every check has a [timeout](./configuration#connectivity) (20 s by default), and all providers are checked in parallel.
+Every check has a [timeout](./configuration#connectivity) (20 s by default), and all providers are checked in parallel. With [`cache`](./configuration#cache), providers that passed recently aren't checked again.
 
 ## Permissions
 

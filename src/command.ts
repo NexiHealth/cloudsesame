@@ -9,6 +9,8 @@ export interface Flags {
   skip: boolean;
   yes: boolean;
   strict: boolean;
+  /** Ignore the check cache for this run. */
+  fresh: boolean;
   noInput: boolean;
   force: boolean;
   offline?: OfflinePolicy;

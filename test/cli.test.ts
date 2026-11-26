@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, spyOn, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, spyOn, test } from "bun:test";
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
@@ -146,5 +146,65 @@ describe.skipIf(process.platform === "win32")("check e2e", () => {
     const { code, out } = await capture(["check", "--json"], dir);
     expect(code).toBe(4);
     expect(JSON.parse(out)).toMatchObject({ ok: false, online: null, results: [{ provider: "gcloud", state: "unauthenticated" }] });
+  });
+});
+
+// The `cache` config, end to end: a fake gcloud that counts its calls, and a private cache dir.
+describe.skipIf(process.platform === "win32")("cache e2e", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sesame-cache-"));
+  const saved = { PATH: process.env.PATH, XDG_CACHE_HOME: process.env.XDG_CACHE_HOME };
+  // In beforeAll, not at collection time: the suite above puts its own gcloud on PATH.
+  beforeAll(() => {
+    process.env.PATH = `${dir}${delimiter}${saved.PATH}`;
+    process.env.XDG_CACHE_HOME = join(dir, "cache");
+  });
+  afterAll(() => {
+    process.env.PATH = saved.PATH;
+    if (saved.XDG_CACHE_HOME === undefined) delete process.env.XDG_CACHE_HOME;
+    else process.env.XDG_CACHE_HOME = saved.XDG_CACHE_HOME;
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  const counter = join(dir, "calls");
+  writeFileSync(join(dir, ".git"), "");
+  writeFileSync(join(dir, "sesame.config.json"), JSON.stringify({ onlineCheck: false, cache: true, gcloud: { credentials: "adc" } }));
+  writeFileSync(join(dir, "gcloud"), `#!/bin/sh\necho x >> ${counter}\necho token\n`);
+  chmodSync(join(dir, "gcloud"), 0o755);
+  const calls = () => (existsSync(counter) ? readFileSync(counter, "utf8").trim().split("\n").length : 0);
+
+  test("auth reuses a recent pass; check and --fresh always check", async () => {
+    // gcloud runs twice per check (adc token + account).
+    expect(await capture(["auth", "--plain"], dir)).toMatchObject({ code: 0, out: "✔ gcloud adc" });
+    const first = calls();
+    expect(await capture(["auth", "--plain"], dir)).toMatchObject({ code: 0, out: "✔ gcloud adc  (cached)" });
+    expect(calls()).toBe(first);
+    expect((await capture(["check", "--plain"], dir)).out).toBe("✔ gcloud adc");
+    expect(calls()).toBe(first * 2);
+    expect((await capture(["auth", "--fresh", "--plain"], dir)).out).toBe("✔ gcloud adc");
+    expect(calls()).toBe(first * 3);
+  });
+
+  test("a cached cloudflare login still hands the token to the command, without running cf", async () => {
+    const cfCalls = join(dir, "cf-calls");
+    const creds = join(dir, "cf-creds.json");
+    writeFileSync(creds, JSON.stringify({ oauth_token: "oauth-from-cf", expiration_time: "2099-01-01T00:00:00Z" }));
+    const whoami = { authenticated: true, authSource: `OAuth token from ${creds}`, tokenValid: true, email: "me@acme.dev", accounts: [] };
+    writeFileSync(join(dir, "cf"), `#!/bin/sh\necho x >> ${cfCalls}\necho '${JSON.stringify(whoami)}'\n`);
+    chmodSync(join(dir, "cf"), 0o755);
+    writeFileSync(join(dir, "cf.config.json"), JSON.stringify({ onlineCheck: false, cache: true, cloudflare: {} }));
+    const out = join(dir, "token");
+    const env = { ...process.env };
+    delete process.env.CLOUDFLARE_API_TOKEN;
+    try {
+      const cmd = ["-c", "cf.config.json", "--plain", "--", "sh", "-c", `printf %s "$CLOUDFLARE_API_TOKEN" > ${out}`];
+      expect((await capture(cmd, dir)).code).toBe(0);
+      const ran = readFileSync(cfCalls, "utf8");
+      const second = await capture(cmd, dir);
+      expect(second).toMatchObject({ code: 0, err: "✔ cloudflare login  me@acme.dev  (cached)" });
+      expect(readFileSync(out, "utf8")).toBe("oauth-from-cf");
+      expect(readFileSync(cfCalls, "utf8")).toBe(ran);
+    } finally {
+      process.env = env;
+    }
   });
 });

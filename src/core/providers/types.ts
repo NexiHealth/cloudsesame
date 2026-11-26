@@ -16,6 +16,8 @@ export interface Status {
   message?: string;
   /** Command that fixes it (usually a login), when there is one. */
   fix?: string[];
+  /** Where the credential is read from (a file path), when a command after `--` gets it. Never the credential itself. */
+  source?: string;
 }
 
 export interface CheckContext {
@@ -24,6 +26,7 @@ export interface CheckContext {
   http: Deps["http"];
   readFile: Deps["readFile"];
   env: Deps["env"];
+  now: Deps["now"];
   timeout: number;
 }
 
@@ -36,9 +39,10 @@ export interface Provider<T> {
   check(target: T, ctx: CheckContext): Promise<Status[]>;
   /**
    * Environment for a command run after the checks (`cloudsesame infra -- tofu plan`), e.g. a fresh token for tools that
-   * can't read the provider's login themselves. Called only when the target is ready.
+   * can't read the provider's login themselves. Called only when the target is ready. `statuses`: the target's
+   * statuses from this run, possibly reused from the cache (see `Status.source`).
    */
-  env?(target: T, ctx: CheckContext): Promise<Record<string, string>>;
+  env?(target: T, ctx: CheckContext, statuses?: Status[]): Promise<Record<string, string>>;
 }
 
 /** First meaningful line of a CLI error, without the "ERROR: (gcloud.x.y)" style prefixes. */

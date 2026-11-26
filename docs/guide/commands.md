@@ -100,6 +100,7 @@ In `package.json`:
 | `--skip` | Never prompt or fail: skip providers that aren't ready, continue offline |
 | `-y`, `--yes` | Never prompt: log in when needed, continue offline |
 | `--strict` | Treat skipped providers (and continuing offline) as failures |
+| `--fresh` | Check everything, ignoring the [cache](./configuration#cache) for this run (`check` always does) |
 | `--offline <policy>` | `prompt` \| `continue` \| `fail` (predev) |
 | `--unauthenticated <policy>` | `prompt` \| `login` \| `skip` \| `fail` |
 | `--no-input` | Don't prompt, as if there were no terminal |

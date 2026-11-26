@@ -94,6 +94,25 @@ These decide what happens when something isn't ready. [Flags](./commands#options
 | `onlineCheck` | `"www.gstatic.com:443"` | `host:port` probed (TCP) to detect connectivity, or `false` to skip the check. |
 | `timeout` | `20000` | Timeout per check, in milliseconds. |
 
+## Cache
+
+Running several commands in a row (`cloudsesame infra -- tofu plan`, then `tofu apply`, then a script) checks every provider each time. Turn on the cache to reuse a recent pass:
+
+```json
+{ "cache": true }
+```
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `cache` | `false` | `true` reuses checks that passed in the last 30 seconds; a number sets the seconds, e.g. `120`. |
+
+- Only targets that passed are remembered. Anything not ready is checked (and prompted for) as usual, and a failure forgets the earlier pass.
+- A result is reused per target and per identity environment: changing the target's config or a variable like `AWS_PROFILE`, `CLOUDSDK_CONFIG` or a token checks again.
+- Reused results show `(cached)`, and keep their original time, so repeated runs don't keep them alive past the TTL. When every target is cached, the connectivity check is skipped too.
+- [`check`](./commands#check) always checks, and `--fresh` checks everything for one run. Both still record the results.
+- With a command after `--`, a cached Cloudflare login's token is read again from `cf`'s login file instead of running `cf auth whoami`, as long as it's valid for at least 5 more minutes. Otherwise `cf` refreshes it as usual.
+- Results live in `~/.cache/cloudsesame/checks.json` (`$XDG_CACHE_HOME`, `%LOCALAPPDATA%` on Windows), readable only by you. It holds statuses and hashed keys, never tokens.
+
 ## Validation
 
 An invalid config exits with code 2 and names the field, for example `aws[1].accountId` when an account ID isn't 12 digits, or `gcloud[0].quotaProject` when it's set with `credentials: "user"`, or `gcloud[0].permissions` without a `project`. Unknown fields are errors too, so typos don't go unnoticed.
