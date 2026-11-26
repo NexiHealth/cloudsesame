@@ -197,8 +197,9 @@ export default {
 | `animation` | `"after-login"` | The open-sesame animation: `after-login` · `always` · `never` |
 | `onlineCheck` | `"www.gstatic.com:443"` | `host:port` probed for connectivity, or `false` |
 | `timeout` | `20000` | Timeout per check, in ms |
+| `cache` | `false` | Reuse checks that passed recently: `true` (30 s) or seconds. `check` and `--fresh` always check ([Cache](https://nexihealth.github.io/cloudsesame/guide/configuration#cache)) |
 
-Flags override the config: `--skip`, `--yes`, `--strict`, `--offline`, `--unauthenticated`, `--animation`, `--no-input`, `--json`, `--plain`. See [all commands and flags](https://nexihealth.github.io/cloudsesame/guide/commands).
+Flags override the config: `--skip`, `--yes`, `--strict`, `--fresh`, `--offline`, `--unauthenticated`, `--animation`, `--no-input`, `--json`, `--plain`. See [all commands and flags](https://nexihealth.github.io/cloudsesame/guide/commands).
 
 ## Use it in your scripts
 

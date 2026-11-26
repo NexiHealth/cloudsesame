@@ -1,4 +1,5 @@
 import type { Command, Context } from "../command";
+import { cacheTtl } from "../core/cache";
 import { commandEnv } from "../core/check";
 import { loadConfig } from "../core/config/load";
 import { defaultDeps } from "../core/deps";
@@ -17,12 +18,15 @@ export interface Checked {
 
 async function prepare(mode: Mode, ctx: Context): Promise<FlowOptions> {
   const { config } = await loadConfig({ cwd: ctx.cwd, path: ctx.flags.config });
+  const ttl = cacheTtl(config.cache);
   const opts = {
     config,
     targets: resolveTargets(config, ctx.args),
     policies: resolvePolicies(mode, config, ctx.flags),
     // JSON output is for scripts: never prompt.
     interactive: ctx.interactive && !ctx.flags.json,
+    // `check` reports the current state, so it never reuses results; it still records them for the next run.
+    cache: ttl > 0 ? { ttl, read: mode !== "check" && !ctx.flags.fresh } : undefined,
   };
   return opts;
 }

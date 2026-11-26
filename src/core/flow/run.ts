@@ -1,3 +1,4 @@
+import { cacheKey, readCache, writeCache } from "../cache";
 import { checkTarget, fixFor, isReady } from "../check";
 import { defaultDeps, type Deps } from "../deps";
 import { ExitCode } from "../exit";
@@ -14,9 +15,9 @@ const NO_TERMINAL = "No terminal to prompt in.";
  * Online check, provider checks, then resolve each failing target according to the policies:
  * prompt (log in / skip / stop), log in, skip, fail or just report.
  */
-export async function runFlow({ config, targets, policies, interactive }: FlowOptions, ui: Ui, deps: Deps = defaultDeps): Promise<FlowResult> {
+export async function runFlow({ config, targets, policies, interactive, cache }: FlowOptions, ui: Ui, deps: Deps = defaultDeps): Promise<FlowResult> {
   const timeout = config.timeout ?? 20_000;
-  const state = targets.map(() => ({ statuses: [] as Status[], skipped: false }));
+  const state = targets.map(() => ({ statuses: [] as Status[], skipped: false, cached: false }));
   let loggedIn = false;
   let online: boolean | null = null;
 
@@ -24,7 +25,9 @@ export async function runFlow({ config, targets, policies, interactive }: FlowOp
     code,
     online,
     loggedIn,
-    results: state.flatMap((s) => s.statuses.map((st) => (s.skipped && st.state !== "ok" ? { ...st, skipped: true as const } : st))),
+    results: state.flatMap((s) =>
+      s.statuses.map((st) => (s.skipped && st.state !== "ok" ? { ...st, skipped: true as const } : s.cached ? { ...st, cached: true as const } : st)),
+    ),
   });
 
   const check = async (index: number) => {
@@ -33,11 +36,25 @@ export async function runFlow({ config, targets, policies, interactive }: FlowOp
     ui.emit({ type: "checked", index, statuses: state[index]!.statuses });
   };
 
+  // Targets that passed recently (the `cache` config) aren't checked again.
+  const keys = cache ? targets.map((t) => cacheKey(t, deps.env)) : [];
+  const fromCache = cache?.read ? await readCache(keys, cache.ttl, deps) : [];
+  /** Remember what's ready now, forget what isn't. Reused results keep their time, so they still expire. */
+  const done = async (code: number) => {
+    if (cache) {
+      const updates = new Map<string, Status[] | undefined>();
+      state.forEach((s, i) => !s.cached && s.statuses.length > 0 && updates.set(keys[i]!, isReady(s.statuses) ? s.statuses : undefined));
+      await writeCache(updates, deps);
+    }
+    return result(code);
+  };
+
   ui.emit({ type: "start", targets });
 
-  // 1. Connectivity.
+  // 1. Connectivity. Not needed when every target comes from the cache.
   const onlineCheck = config.onlineCheck ?? "www.gstatic.com:443";
-  online = onlineCheck === false ? null : await deps.isOnline(onlineCheck);
+  const allCached = targets.length > 0 && targets.every((_, i) => fromCache[i]);
+  online = onlineCheck === false || allCached ? null : await deps.isOnline(onlineCheck);
   ui.emit({ type: "online", online });
 
   if (online === false) {
@@ -52,7 +69,14 @@ export async function runFlow({ config, targets, policies, interactive }: FlowOp
   }
 
   // 2. All providers in parallel.
-  await Promise.all(targets.map((_, i) => check(i)));
+  await Promise.all(
+    targets.map(async (_, i) => {
+      const cached = fromCache[i];
+      if (!cached) return check(i);
+      state[i] = { statuses: cached, skipped: false, cached: true };
+      ui.emit({ type: "checked", index: i, statuses: cached, cached: true });
+    }),
+  );
 
   // 3. Resolve failing targets one at a time (logins need the terminal).
   const failed: number[] = [];
@@ -72,7 +96,7 @@ export async function runFlow({ config, targets, policies, interactive }: FlowOp
         : await decideTarget(targetLabel(target), fix, attempts, policies, interactive, ui);
       noTerminalFailure ||= noTerminal;
 
-      if (action === "stop") return result(ExitCode.Stopped);
+      if (action === "stop") return done(ExitCode.Stopped);
       if (action === "report" || action === "fail") {
         failed.push(index);
         break;
@@ -105,7 +129,7 @@ export async function runFlow({ config, targets, policies, interactive }: FlowOp
     });
   }
   const skipped = state.some((s) => s.skipped);
-  return result(failed.length > 0 || (skipped && policies.strict) ? ExitCode.Unauthenticated : ExitCode.Ok);
+  return done(failed.length > 0 || (skipped && policies.strict) ? ExitCode.Unauthenticated : ExitCode.Ok);
 }
 
 interface Decision<T> {

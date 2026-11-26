@@ -7,6 +7,8 @@ export interface Row {
   phase: "pending" | "checking" | "done" | "login";
   statuses: Status[];
   skipped: boolean;
+  /** Reused from a recent run (the `cache` config). */
+  cached?: boolean;
   command?: string[];
 }
 
@@ -35,7 +37,7 @@ export function reduce(view: View, event: FlowEvent): View {
     case "checking":
       return row(event.index, { phase: "checking" });
     case "checked":
-      return row(event.index, { phase: "done", statuses: event.statuses });
+      return row(event.index, { phase: "done", statuses: event.statuses, cached: !!event.cached });
     case "login":
       return row(event.index, { phase: "login", command: event.command });
     case "login-failed":

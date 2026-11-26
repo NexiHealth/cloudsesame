@@ -5,9 +5,9 @@ import type { Status } from "../core/providers/types";
 import { type Target, targetLabel } from "../core/targets";
 import { formatCommand, statusTitle, symbols } from "./format";
 
-export function formatStatus(s: Status & { skipped?: true }): string[] {
+export function formatStatus(s: Status & { skipped?: true; cached?: true }): string[] {
   const detail = [s.identity, s.message].filter(Boolean).join(": ");
-  const lines = [`${symbols[s.state]} ${statusTitle(s)}${detail ? `  ${detail}` : ""}${s.skipped ? "  (skipped)" : ""}`];
+  const lines = [`${symbols[s.state]} ${statusTitle(s)}${detail ? `  ${detail}` : ""}${s.skipped ? "  (skipped)" : ""}${s.cached ? "  (cached)" : ""}`];
   if (s.fix && s.state !== "ok") lines.push(`  → ${formatCommand(s.fix)}`);
   return lines;
 }
@@ -19,7 +19,7 @@ export function formatStatus(s: Status & { skipped?: true }): string[] {
 export class PlainUi implements Ui {
   private targets: Target[] = [];
   // Initial checks run in parallel; print them in target order.
-  private pending = new Map<number, Status[]>();
+  private pending = new Map<number, Array<Status & { cached?: true }>>();
   private nextToPrint = 0;
 
   constructor(private readonly opts: { silent?: boolean; stderr?: boolean } = {}) {}
@@ -40,17 +40,19 @@ export class PlainUi implements Ui {
       case "online":
         if (event.online !== null) this.log(event.online ? "✔ online" : "✖ offline");
         break;
-      case "checked":
+      case "checked": {
+        const statuses = event.cached ? event.statuses.map((s) => ({ ...s, cached: true as const })) : event.statuses;
         if (this.nextToPrint < this.targets.length) {
-          this.pending.set(event.index, event.statuses);
+          this.pending.set(event.index, statuses);
           while (this.pending.has(this.nextToPrint)) {
             for (const s of this.pending.get(this.nextToPrint)!) formatStatus(s).forEach((l) => this.log(l));
             this.pending.delete(this.nextToPrint++);
           }
         } else {
-          for (const s of event.statuses) formatStatus(s).forEach((l) => this.log(l));
+          for (const s of statuses) formatStatus(s).forEach((l) => this.log(l));
         }
         break;
+      }
       case "login":
         this.log(`↪ ${formatCommand(event.command)}`);
         break;

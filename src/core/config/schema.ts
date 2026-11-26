@@ -74,6 +74,10 @@ export const configSchema: z.ZodType<Config> = z
       .union([z.string().regex(/^[^:\s]+:\d+$/, 'must be "host:port"'), z.literal(false)])
       .optional()
       .describe('host:port probed to detect connectivity, or false. Default: "www.gstatic.com:443"'),
+    cache: z
+      .union([z.boolean(), z.number().int().positive()])
+      .optional()
+      .describe("Reuse passing checks: true (30 s) or seconds. Default: false"),
     timeout: z.number().int().positive().optional().describe("Timeout per check in ms. Default: 20000"),
     groups: z
       .record(z.string(), z.array(z.enum(providerIds)))

@@ -4,13 +4,14 @@ import { formatCommand, symbols } from "../format";
 
 const colors: Record<State, string> = { ok: "green", unauthenticated: "red", mismatch: "yellow", denied: "red", missing: "red", error: "red" };
 
-export function StatusLine({ status: s }: { status: Status }) {
+export function StatusLine({ status: s, cached }: { status: Status; cached?: boolean }) {
   return (
     <Box flexDirection="column">
       <Text>
         <Text color={colors[s.state]}>{symbols[s.state]}</Text> <Text bold>{s.provider}</Text> {s.label}
         {s.identity && <Text dimColor>  {s.identity}</Text>}
         {s.message && <Text color={colors[s.state]}>  {s.message}</Text>}
+        {cached && <Text dimColor>  (cached)</Text>}
       </Text>
       {s.fix && s.state !== "ok" && <Text dimColor>  → {formatCommand(s.fix)}</Text>}
     </Box>

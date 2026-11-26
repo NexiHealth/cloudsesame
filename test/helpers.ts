@@ -39,6 +39,8 @@ export function deps(overrides: Partial<Deps> & { online?: boolean } = {}): Deps
     isOnline: async () => overrides.online ?? true,
     http: async () => ({ status: 0, body: "no network in tests" }),
     readFile: async () => undefined,
+    writeFile: async () => {},
+    now: () => 0,
     env: {},
     ...overrides,
   };

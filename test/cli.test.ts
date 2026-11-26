@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, spyOn, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, spyOn, test } from "bun:test";
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
@@ -146,5 +146,41 @@ describe.skipIf(process.platform === "win32")("check e2e", () => {
     const { code, out } = await capture(["check", "--json"], dir);
     expect(code).toBe(4);
     expect(JSON.parse(out)).toMatchObject({ ok: false, online: null, results: [{ provider: "gcloud", state: "unauthenticated" }] });
+  });
+});
+
+// The `cache` config, end to end: a fake gcloud that counts its calls, and a private cache dir.
+describe.skipIf(process.platform === "win32")("cache e2e", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sesame-cache-"));
+  const saved = { PATH: process.env.PATH, XDG_CACHE_HOME: process.env.XDG_CACHE_HOME };
+  // In beforeAll, not at collection time: the suite above puts its own gcloud on PATH.
+  beforeAll(() => {
+    process.env.PATH = `${dir}${delimiter}${saved.PATH}`;
+    process.env.XDG_CACHE_HOME = join(dir, "cache");
+  });
+  afterAll(() => {
+    process.env.PATH = saved.PATH;
+    if (saved.XDG_CACHE_HOME === undefined) delete process.env.XDG_CACHE_HOME;
+    else process.env.XDG_CACHE_HOME = saved.XDG_CACHE_HOME;
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  const counter = join(dir, "calls");
+  writeFileSync(join(dir, ".git"), "");
+  writeFileSync(join(dir, "sesame.config.json"), JSON.stringify({ onlineCheck: false, cache: true, gcloud: { credentials: "adc" } }));
+  writeFileSync(join(dir, "gcloud"), `#!/bin/sh\necho x >> ${counter}\necho token\n`);
+  chmodSync(join(dir, "gcloud"), 0o755);
+  const calls = () => (existsSync(counter) ? readFileSync(counter, "utf8").trim().split("\n").length : 0);
+
+  test("auth reuses a recent pass; check and --fresh always check", async () => {
+    // gcloud runs twice per check (adc token + account).
+    expect(await capture(["auth", "--plain"], dir)).toMatchObject({ code: 0, out: "✔ gcloud adc" });
+    const first = calls();
+    expect(await capture(["auth", "--plain"], dir)).toMatchObject({ code: 0, out: "✔ gcloud adc  (cached)" });
+    expect(calls()).toBe(first);
+    expect((await capture(["check", "--plain"], dir)).out).toBe("✔ gcloud adc");
+    expect(calls()).toBe(first * 2);
+    expect((await capture(["auth", "--fresh", "--plain"], dir)).out).toBe("✔ gcloud adc");
+    expect(calls()).toBe(first * 3);
   });
 });

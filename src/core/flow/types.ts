@@ -17,13 +17,19 @@ export interface FlowOptions {
   policies: Policies;
   /** Whether prompts can be shown (a terminal on stdin and stdout, and not --no-input). */
   interactive: boolean;
+  /**
+   * Remember passing targets for `ttl` ms (the `cache` config). `read: false` checks everything anyway but still
+   * records the results (`check`, `--fresh`). Omitted: no cache.
+   */
+  cache?: { ttl: number; read: boolean };
 }
 
 export type FlowEvent =
   | { type: "start"; targets: Target[] }
   | { type: "online"; online: boolean | null }
   | { type: "checking"; index: number }
-  | { type: "checked"; index: number; statuses: Status[] }
+  /** `cached`: the target passed recently, so it wasn't checked again (the `cache` config). */
+  | { type: "checked"; index: number; statuses: Status[]; cached?: boolean }
   | { type: "login"; index: number; command: string[] }
   | { type: "login-failed"; index: number; code: number }
   | { type: "skipped"; index: number }
@@ -50,8 +56,8 @@ export interface Ui {
 export interface FlowResult {
   code: number;
   online: boolean | null;
-  /** Final statuses; `skipped` marks failures the user chose to skip. */
-  results: Array<Status & { skipped?: true }>;
+  /** Final statuses; `skipped` marks failures the user chose to skip, `cached` results reused from a recent run. */
+  results: Array<Status & { skipped?: true; cached?: true }>;
   /** Whether a login (or other fix) succeeded during the run. */
   loggedIn: boolean;
 }
